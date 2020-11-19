@@ -1,7 +1,7 @@
 using PRAS, FileIO, JLD, DelimitedFiles, DataFrames, CSV, XLSX, TickTock
 foldername = "test11.16" # whatever you named the folde
-casename = "VRE0.4_wind_2012base100%_8760_100%tx_18%IRM_30GWstorage_addgulfsolar.pras"
-casename2 = "VRE0.4_wind_2012base100%_8760_100%tx_18%IRM_30GWstorage_addgulfsolar.pras"
+casename = "VRE0.4_wind_2012base100%_8760_25%tx_18%IRM_12GWstorage_addgulfsolar.pras"
+casename2 = "VRE0.4_wind_2012base100%_8760_25%tx_18%IRM_12GWstorage_addgulfsolar.pras"
 
 casename3 = "VRE0.4_wind_2012base100%_8760_25%tx_18%IRM_30GWstorage_addgulfsolar.pras"
 casename4 = "VRE0.4_wind_2012base100%_8760_25%tx_18%IRM_30GWstorage_addgulfsolar.pras"
@@ -136,6 +136,11 @@ function augment_system_generator(original_system, zone, resource_type, MW)
     return original_system
 end
 
+function run_model_elcc_LAGULF(m, m2, capacity, samples, pval)
+    min_elcc, max_elcc = assess(ELCC{EUE}(capacity, "26", p_value=pval), SequentialMonteCarlo(samples=samples), Network(), m, m2)
+    return min_elcc, max_elcc
+end
+
 function ELCC_wrapper_storage(casename, sys_path, aug_path, samples, pval, capacity, duration)
     basesystem = SystemModel(sys_path)
     # run the base system to determine regional EUE, LOLE
@@ -161,7 +166,7 @@ function ELCC_wrapper_storage(casename, sys_path, aug_path, samples, pval, capac
         augsystem = SystemModel(aug_path)
         augmodel = augment_system_storage(augsystem, zone, duration, capacity)
         println("case model loaded, running ELCC...")
-        min_elcc, max_elcc = run_model_elcc(basesystem, augmodel, capacity, zone_nums[i], samples, pval)
+        min_elcc, max_elcc = run_model_elcc_LAGULF(basesystem, augmodel, capacity, samples, pval)
         println("...case ELCC run, storing data")
         push!(df, [string(zone, duration, "hour"),capacity,capacity * duration,pval,samples,min_elcc,max_elcc,ZoneEUE,ZoneLOLE]) # write results into dataframe
         cd(joinpath(homedir(), "Desktop", foldername, "results"))
@@ -250,7 +255,7 @@ end
 
 # wrapped ELCC runs
 # these take a very long time if you're not careful
-ELCC_wrapper_storage(casename,path,path2,2500,.2,500,6)
+ELCC_wrapper_storage(casename,path,path2,250,.2,500,6)
 ELCC_wrapper_storage(casename3,path3,path4,2500,.2,500,6)
 
 ELCC_wrapper_solar(casename,path,path2,2500,.2,500)

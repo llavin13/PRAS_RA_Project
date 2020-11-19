@@ -861,7 +861,7 @@ class ELCCplotter(object):
         axs[rows - 1, cols - 1].set_visible(
             False
         )  # bottom r axis is off for visibility
-        fig.suptitle("6-hour battery ELCC as function of ICAP", fontsize=30)
+        fig.suptitle("6-hour battery ELCC as function of Storage ICAP", fontsize=30)
         for i, zone in enumerate(self.storage_df.resourcename.unique()):
             self.storage_df[self.storage_df.resourcename == zone].plot.line(
                 x="xval",
@@ -997,7 +997,7 @@ class ELCCplotter(object):
             return pd.concat([self.storage_df, df], sort=True)
         return df
 
-    def solar_case_plot(self, *args):
+    def solar_case_plot(self, vary_str, *args):
         arglist = []
         for counter, i in enumerate(args):
             if type(i) == list:
@@ -1007,7 +1007,7 @@ class ELCCplotter(object):
                 arglist.append(i)
         for a in argiter:
             arglist.insert(place, a)
-            self.solar_df = self.solar_case_load(arglist, a)
+            self.solar_df = self.solar_case_load(arglist, a, "solar_df")
             arglist.pop(place)
         self.solar_df["minelcc%"] = self.solar_df.minelcc * (
             100.0 / max(self.solar_df.maxelcc)
@@ -1015,29 +1015,86 @@ class ELCCplotter(object):
         self.solar_df["maxelcc%"] = self.solar_df.maxelcc * (
             100.0 / max(self.solar_df.maxelcc)
         )
+        self.solar_df["avgelcc%"] = (
+            self.solar_df["maxelcc%"] + self.solar_df["minelcc%"]
+        ) * 0.5
+
+        self.solar_df["case_num"] = [1.0 for i in self.solar_df.index]
         rows = 6
         cols = 4
-        fig, axs = plt.subplots(rows, cols, sharex=True, sharey=True, figsize=(20, 10))
+        solar_fig, solar_axs = plt.subplots(
+            rows, cols, sharex=True, sharey=True, figsize=(20, 10)
+        )
+        solar_axs[rows - 1, cols - 2].set_visible(
+            False
+        )  # bottom r axis is off for visibility
+        solar_axs[rows - 1, cols - 1].set_visible(
+            False
+        )  # bottom r axis is off for visibility
+        solar_fig.suptitle("Solar ELCC as function of Storage ICAP", fontsize=30)
         for i, zone in enumerate(self.solar_df.resourcename.unique()):
-            self.solar_df[self.solar_df.resourcename == zone].plot.scatter(
-                x="xval", y="minelcc%", c="k", ax=axs[int(i / cols), i % cols]
+            self.solar_df[self.solar_df.resourcename == zone].plot.line(
+                x="xval",
+                y="avgelcc%",
+                c="r",
+                ax=solar_axs[int(i / cols), i % cols],
+                legend=False,
             )
-            self.solar_df[self.solar_df.resourcename == zone].plot.scatter(
-                x="xval", y="maxelcc%", c="r", ax=axs[int(i / cols), i % cols]
+            subsetdf = self.solar_df[self.solar_df.resourcename == zone]
+            solar_axs[int(i / cols), i % cols].text(
+                subsetdf.xval.values[int(len(subsetdf.xval) / 2.0)],
+                3.0 + subsetdf["avgelcc%"].values[int(len(subsetdf.xval) / 2.0)],
+                "Tx=100%",
+                color="r",
             )
-            # axs[int(i / cols), i % cols].set_ylim(1, 13)
-            axs[int(i / cols), i % cols].set_title(zone)
-            axs[int(i / cols), i % cols].set_ylabel("ELCC (%)")
-            axs[int(i / cols), i % cols].set_xlabel("Percent of base Tx capacity")
+            # axs[int(i / cols), i % cols].text(
+            #    subsetdf.xval.mean(), subsetdf["avgelcc%"].mean(), "Tx=100%"
+            # )
+            solar_axs[int(i / cols), i % cols].fill_between(
+                subsetdf.xval,
+                subsetdf["minelcc%"],
+                subsetdf["maxelcc%"],
+                color="k",
+                alpha=0.2,
+            )
+            solar_axs[int(i / cols), i % cols].set_title(
+                zone[: zone.find(re.findall(r"Utility", zone)[0])]
+            )
+            solar_axs[int(i / cols), i % cols].set_ylabel("ELCC (%)")
+            solar_axs[int(i / cols), i % cols].set_xlabel("StorageICAP (GW)")
 
+        # add a manual legend to your plot, if desired
+        colors = ["black", "red"]
+        linewidths = [12, 4]
+        alphas = [0.2, 1]
+        lines = [
+            Line2D([0], [0], color=c, linewidth=lw, alpha=a)
+            for c, lw, a in zip(colors, linewidths, alphas)
+        ]
+        labels = ["80%CI", "AvgELCC(%)"]
+        plt.figlegend(
+            lines,
+            labels,
+            fontsize=24,
+            frameon=False,
+            bbox_to_anchor=(0.88, 0.2),
+            ncol=2,
+        )
+        # store some objects, if desired
+        self.solar_fig = solar_fig
+        self.solar_axs = solar_axs
+        self.solar_cols = cols
+        self.solar_rows = rows
         # write plot
         filename = "_".join([str(elem) for elem in arglist])
         plt.savefig(
-            join(self.results_folder, "ELCC_" + filename + ".jpg",), dpi=300,
+            join(
+                "SOLAR", self.results_folder, vary_str + "_ELCC_" + filename + ".jpg",
+            ),
+            dpi=300,
         )
-        return None
 
-    def solar_case_load(self, arglist, colname):
+    def solar_case_load(self, arglist, colname, attr_string, n=1):
         casename = "solarELCC_" + self.casename
         for i in arglist:
             casename = self.handler(casename, i)
@@ -1045,10 +1102,74 @@ class ELCCplotter(object):
         df = pd.read_csv(join(self.elcc_folder, casename + ".csv"))
         df["caseID"] = [colname for i in df.index]
         df["xval"] = [int(re.search(r"\d+", colname).group()) for i in df.index]
-
-        if hasattr(self, "solar_df"):
-            return pd.concat([self.solar_df, df])
+        if n != 1:
+            df["case_num"] = [n for i in df.index]
+        if hasattr(self, attr_string):
+            return pd.concat([self.solar_df, df], sort=True)
         return df
+
+    def add_solar_line_to_existing_plot(self, vary_str, case_num, *args):
+        pd.set_option("mode.chained_assignment", None)  # for now to suppress warnings
+        linecolor_list = ["r", "b", "g"]
+        arglist = []
+        # create attribute from pre-existing df, but clear it
+        self.solar_df_2 = pd.DataFrame(columns=self.solar_df.columns)
+        for counter, i in enumerate(args):
+            if type(i) == list:
+                argiter = i
+                place = counter
+            else:
+                arglist.append(i)
+        for a in argiter:
+            arglist.insert(place, a)
+            # setattr(x, attr, 'magic')
+            self.solar_df = self.solar_case_load(arglist, a, "solar_df", n=case_num)
+            # setattr(self, attr_ID,self.storage_case_load(arglist, a, attr_ID))
+            arglist.pop(place)
+        case_solar_df = self.solar_df[self.solar_df.case_num == case_num]
+        case_solar_df["minelcc%"] = (
+            case_solar_df.minelcc * 100.0 / max(case_solar_df.maxelcc)
+        )
+        case_solar_df["maxelcc%"] = (
+            case_solar_df.maxelcc * 100.0 / max(case_solar_df.maxelcc)
+        )
+        case_solar_df["avgelcc%"] = (
+            case_solar_df["maxelcc%"] + case_solar_df["minelcc%"]
+        ) * 0.5
+
+        for i, zone in enumerate(case_solar_df.resourcename.unique()):
+            case_solar_df[case_solar_df.resourcename == zone].plot.line(
+                x="xval",
+                y="avgelcc%",
+                c=linecolor_list[case_num - 1],
+                ax=self.solar_axs[int(i / self.solar_cols), i % self.solar_cols],
+                legend=False,
+            )
+            subsetdf = case_solar_df[case_solar_df.resourcename == zone]
+            self.solar_axs[int(i / self.solar_cols), i % self.solar_cols].text(
+                subsetdf.xval.mean(),
+                subsetdf["avgelcc%"].mean() - 12.0,
+                "Tx=25%",
+                color=linecolor_list[case_num - 1],
+            )
+            self.solar_axs[int(i / self.solar_cols), i % self.solar_cols].fill_between(
+                subsetdf.xval,
+                subsetdf["minelcc%"],
+                subsetdf["maxelcc%"],
+                color="k",
+                alpha=0.2,
+            )
+            self.solar_axs[int(i / self.solar_cols), i % self.solar_cols].set_xlabel(
+                "StorageICAP (GW)"
+            )
+
+        filename = "_".join([str(elem) for elem in arglist])
+        plt.savefig(
+            join(
+                "SOLAR", self.results_folder, vary_str + "_ELCC_" + filename + ".jpg",
+            ),
+            dpi=300,
+        )
 
     def handler(self, casename, obj):
         if type(obj) == str:
@@ -1072,6 +1193,29 @@ elcc_obj.storage_case_plot(
     "0GWstorage",
 )
 """
+elcc_obj.solar_case_plot(
+    "varysolarcapacity",
+    "0.4",
+    "wind",
+    "2012base100%",
+    "8760",
+    "100%tx",
+    "18%IRM",
+    ["0GWstorage", "12GWstorage", "30GWstorage", "100GWstorage"],
+)
+
+elcc_obj.add_solar_line_to_existing_plot(
+    "varysolarcapacity",
+    2,
+    "0.4",
+    "wind",
+    "2012base100%",
+    "8760",
+    "25%tx",
+    "18%IRM",
+    ["0GWstorage","30GWstorage","60GWstorage"],
+)
+
 elcc_obj.storage_case_plot(
     "varystoragecapacity",
     "0.4",
@@ -1092,11 +1236,11 @@ elcc_obj.add_storage_line_to_existing_plot(
     "8760",
     "25%tx",
     "18%IRM",
-    ["0GWstorage", "12GWstorage", "30GWstorage"],
+    ["0GWstorage", "12GWstorage", "30GWstorage", "60GWstorage", "100GWstorage"],
 )
 
 # storageELCC_VRE0.2_wind_2012base100%_8760_0%tx_18%IRM_nostorage_addgulfsolar
-
+"""
 test = plotter(data, results, casename, miso_data)
 
 if NREL:
@@ -1120,4 +1264,5 @@ test.heatmap("period_eue")
 # test.tx_heatmap("15", "flow")
 # test.heatmap("period_lolp", mean=True)
 test.plot_zonal_loads(NREL=NREL, year_lab=NREL_year, scenario_lab=scenario_label)
+"""
 

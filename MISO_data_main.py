@@ -40,11 +40,11 @@ re_penetration = "0.4"
 profile_year = 2012
 NREL = False
 NREL_year, NREL_profile = 2040, "EFSLoadProfile_Reference_Moderate"
-pras_filename = "VRE0.4_wind_2012base100%_8760_25%tx_18%IRM_30GWstorage_addgulfsolar"
+pras_filename = "VRE0.4_wind_2012base100%_8760_25%tx_18%IRM_12GWstorage_addgulfsolar"
 load_scalar = 1  # how much to scale resulting load profile by... 1 should be default
 target_IRM = 0.18  # as a fraction
 use_target_IRM = True  #
-storage_capacity = 30000  # total storage capacity, in MW
+storage_capacity = 12100  # total storage capacity, in MW
 scale_transmission_capacity = 0.25  # rescales transmission capacities between zones
 # fliename convention is VREscenario_REscenario_year_hoursused_txmodifier_RMmodifier_storage
 
@@ -60,7 +60,7 @@ hifld_datapath = join(os.environ["HOMEPATH"], "Desktop", folder, "HIFLD_shapefil
 shp_path = (
     os.environ["CONDA_PREFIX"] + r"\Library\share\gdal"
 )  # you need this to pull the retail shapefile, which doesn't come with everything else
-
+print(shp_path)
 ## testing of new function in inline code ##
 if NREL:
     nreltester = NRELEFSprofiles(folder_datapath, NREL_profile)
