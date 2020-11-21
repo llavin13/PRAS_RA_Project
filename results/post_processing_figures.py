@@ -34,15 +34,15 @@ from MISO_data_utility_functions import LoadMISOData, NRELEFSprofiles
 NREL = False
 NREL_year, NREL_profile = 2012, ""
 
-casename = "VRE0.4_wind_2012base100%_8760_100%tx_18%IRM_0GWstorage_addgulfsolar_"
+casename = "VRE0.4_wind_2012base100%_8760_25%tx_18%IRM_0GWstorage_addgulfsolar_"
 
 miso_datapath = join(os.environ["HOMEPATH"], "Desktop", folder, "VREData")
 hifld_datapath = join(os.environ["HOMEPATH"], "Desktop", folder, "HIFLD_shapefiles")
 shp_path = os.environ["CONDA_PREFIX"] + r"\Library\share\gdal"
 results = join(data, "results")
 
-miso_data = LoadMISOData(data, miso_datapath, hifld_datapath, shp_path)
-miso_data.convert_CRS()
+# miso_data = LoadMISOData(data, miso_datapath, hifld_datapath, shp_path)
+# miso_data.convert_CRS()
 
 
 class plotter(object):
@@ -423,8 +423,13 @@ class plotter(object):
         # last big thing would be a helpful legend....
         self.states_map.plot(ax=myaxes, edgecolor="k", facecolor="None", alpha=0.3)
         # states_map.plot(ax=myaxes, edgecolor="k", facecolor="None")
-        myaxes.set_title("MISO regions polygons \n (fill based on " + attribute + ")")
-
+        # myaxes.set_title("MISO regions polygons \n (fill based on " + attribute + ")")
+        # plt.suptitle("MISO Regional Resource Adequacy", fontsize=16, y=1)
+        # plt.title("100% Tx Capacity, 0 GW Storage ICAP", fontsize=12, y=0.95)
+        myaxes.set_title(
+            "MISO Regional Resource Adequacy \n 25% Tx Capacity, 0 GW Storage ICAP",
+            fontsize=12,
+        )
         # add manual legends to help interpret plot
         cap_1 = round(max(linewidths_2), -3)
         cap_2 = round(max(linewidths_2), -3) * 2.0 / 3.0
@@ -828,7 +833,8 @@ class ELCCplotter(object):
         self.elcc_folder = join(results_folder, "ELCCresults")
         self.casename = "VRE"
 
-    def storage_case_plot(self, vary_str, *args):
+    def storage_case_plot(self, vary_str, *args, print_plot=False, case_label="100%tx"):
+        self.label_list = [case_label]
         arglist = []
         for counter, i in enumerate(args):
             if type(i) == list:
@@ -854,7 +860,7 @@ class ELCCplotter(object):
 
         rows = 6
         cols = 4
-        fig, axs = plt.subplots(rows, cols, sharex=True, sharey=True, figsize=(20, 10))
+        fig, axs = plt.subplots(rows, cols, sharex=True, sharey=True, figsize=(15, 8))
         axs[rows - 1, cols - 2].set_visible(
             False
         )  # bottom r axis is off for visibility
@@ -871,12 +877,14 @@ class ELCCplotter(object):
                 legend=False,
             )
             subsetdf = self.storage_df[self.storage_df.resourcename == zone]
+            """
             axs[int(i / cols), i % cols].text(
                 subsetdf.xval.values[int(len(subsetdf.xval) / 2.0)],
                 3.0 + subsetdf["avgelcc%"].values[int(len(subsetdf.xval) / 2.0)],
                 "Tx=100%",
                 color="r",
             )
+            """
             # axs[int(i / cols), i % cols].text(
             #    subsetdf.xval.mean(), subsetdf["avgelcc%"].mean(), "Tx=100%"
             # )
@@ -890,41 +898,46 @@ class ELCCplotter(object):
             axs[int(i / cols), i % cols].set_title(
                 zone[: zone.find(re.findall(r"\d+", zone)[0])]
             )
-            axs[int(i / cols), i % cols].set_ylabel("ELCC (%)")
-            axs[int(i / cols), i % cols].set_xlabel("StorageICAP (GW)")
+            axs[int(i / cols), i % cols].set_ylabel("ELCC (%)", fontsize=16)
+            axs[int(i / cols), i % cols].set_xlabel("ICAP (GW)", fontsize=16)
 
         # add a manual legend to your plot, if desired
-        colors = ["black", "red"]
-        linewidths = [12, 4]
-        alphas = [0.2, 1]
-        lines = [
-            Line2D([0], [0], color=c, linewidth=lw, alpha=a)
-            for c, lw, a in zip(colors, linewidths, alphas)
-        ]
-        labels = ["80%CI", "AvgELCC(%)"]
-        plt.figlegend(
-            lines,
-            labels,
-            fontsize=24,
-            frameon=False,
-            bbox_to_anchor=(0.88, 0.2),
-            ncol=2,
-        )
+        if print_plot:
+            colors = ["black", "red"]
+            linewidths = [12, 4]
+            alphas = [0.2, 1]
+            lines = [
+                Line2D([0], [0], color=c, linewidth=lw, alpha=a)
+                for c, lw, a in zip(colors, linewidths, alphas)
+            ]
+            labels = ["80%CI", case_label]
+            plt.figlegend(
+                lines,
+                labels,
+                fontsize=24,
+                frameon=False,
+                bbox_to_anchor=(0.88, 0.2),
+                ncol=2,
+            )
         # store some objects, if desired
         self.fig = fig
         self.axs = axs
         self.cols = cols
         self.rows = rows
         # write plot
-        filename = "_".join([str(elem) for elem in arglist])
-        plt.savefig(
-            join(self.results_folder, vary_str + "_ELCC_" + filename + ".jpg",),
-            dpi=300,
-        )
+        if print_plot:
+            filename = "_".join([str(elem) for elem in arglist])
+            plt.savefig(
+                join(self.results_folder, vary_str + "_ELCC_" + filename + ".jpg",),
+                dpi=300,
+            )
 
-    def add_storage_line_to_existing_plot(self, vary_str, case_num, *args):
+    def add_storage_line_to_existing_plot(
+        self, vary_str, case_num, *args, print_plot=False, case_label="25%tx"
+    ):
+        self.label_list.append(case_label)
         pd.set_option("mode.chained_assignment", None)  # for now to suppress warnings
-        linecolor_list = ["r", "b", "g"]
+        linecolor_list = ["r", "b", "g", "orange", "purple"]
         arglist = []
         # create attribute from pre-existing df, but clear it
         self.storage_df_2 = pd.DataFrame(columns=self.storage_df.columns)
@@ -962,12 +975,14 @@ class ELCCplotter(object):
                 legend=False,
             )
             subsetdf = case_storage_df[case_storage_df.resourcename == zone]
+            """
             self.axs[int(i / self.cols), i % self.cols].text(
                 subsetdf.xval.mean(),
                 subsetdf["avgelcc%"].mean() - 12.0,
                 "Tx=25%",
                 color=linecolor_list[case_num - 1],
             )
+            """
             self.axs[int(i / self.cols), i % self.cols].fill_between(
                 subsetdf.xval,
                 subsetdf["minelcc%"],
@@ -977,11 +992,28 @@ class ELCCplotter(object):
             )
             self.axs[int(i / self.cols), i % self.cols].set_xlabel("StorageICAP (GW)")
 
-        filename = "_".join([str(elem) for elem in arglist])
-        plt.savefig(
-            join(self.results_folder, vary_str + "_ELCC_" + filename + ".jpg",),
-            dpi=300,
-        )
+        if print_plot:
+            colors = ["black", "red", "blue", "green", "orange", "purple"]
+            linewidths = [12, 4, 4, 4, 4, 4]
+            alphas = [0.2, 1, 1, 1, 1, 1]
+            lines = [
+                Line2D([0], [0], color=c, linewidth=lw, alpha=a)
+                for c, lw, a in zip(colors, linewidths, alphas)
+            ]
+            labels = ["80%CI"] + self.label_list
+            plt.figlegend(
+                lines,
+                labels,
+                fontsize=24,
+                frameon=False,
+                bbox_to_anchor=(0.88, 0.2),
+                ncol=2,
+            )
+            filename = "_".join([str(elem) for elem in arglist])
+            plt.savefig(
+                join(self.results_folder, vary_str + "_ELCC_" + filename + ".jpg",),
+                dpi=300,
+            )
 
     def storage_case_load(self, arglist, colname, attr_string, n=1):
         casename = "storageELCC_" + self.casename
@@ -997,7 +1029,8 @@ class ELCCplotter(object):
             return pd.concat([self.storage_df, df], sort=True)
         return df
 
-    def solar_case_plot(self, vary_str, *args):
+    def solar_case_plot(self, vary_str, *args, print_plot=False, case_label="100%tx"):
+        self.label_list = [case_label]
         arglist = []
         for counter, i in enumerate(args):
             if type(i) == list:
@@ -1023,7 +1056,7 @@ class ELCCplotter(object):
         rows = 6
         cols = 4
         solar_fig, solar_axs = plt.subplots(
-            rows, cols, sharex=True, sharey=True, figsize=(20, 10)
+            rows, cols, sharex=True, sharey=True, figsize=(15, 8)
         )
         solar_axs[rows - 1, cols - 2].set_visible(
             False
@@ -1041,12 +1074,12 @@ class ELCCplotter(object):
                 legend=False,
             )
             subsetdf = self.solar_df[self.solar_df.resourcename == zone]
-            solar_axs[int(i / cols), i % cols].text(
-                subsetdf.xval.values[int(len(subsetdf.xval) / 2.0)],
-                3.0 + subsetdf["avgelcc%"].values[int(len(subsetdf.xval) / 2.0)],
-                "Tx=100%",
-                color="r",
-            )
+            # solar_axs[int(i / cols), i % cols].text(
+            #    subsetdf.xval.values[int(len(subsetdf.xval) / 2.0)],
+            #    3.0 + subsetdf["avgelcc%"].values[int(len(subsetdf.xval) / 2.0)],
+            #    "Tx=100%",
+            #    color="r",
+            # )
             # axs[int(i / cols), i % cols].text(
             #    subsetdf.xval.mean(), subsetdf["avgelcc%"].mean(), "Tx=100%"
             # )
@@ -1060,39 +1093,43 @@ class ELCCplotter(object):
             solar_axs[int(i / cols), i % cols].set_title(
                 zone[: zone.find(re.findall(r"Utility", zone)[0])]
             )
-            solar_axs[int(i / cols), i % cols].set_ylabel("ELCC (%)")
-            solar_axs[int(i / cols), i % cols].set_xlabel("StorageICAP (GW)")
+            solar_axs[int(i / cols), i % cols].set_ylabel("ELCC (%)", fontsize=16)
+            solar_axs[int(i / cols), i % cols].set_xlabel("ICAP (GW)", fontsize=16)
 
         # add a manual legend to your plot, if desired
-        colors = ["black", "red"]
-        linewidths = [12, 4]
-        alphas = [0.2, 1]
-        lines = [
-            Line2D([0], [0], color=c, linewidth=lw, alpha=a)
-            for c, lw, a in zip(colors, linewidths, alphas)
-        ]
-        labels = ["80%CI", "AvgELCC(%)"]
-        plt.figlegend(
-            lines,
-            labels,
-            fontsize=24,
-            frameon=False,
-            bbox_to_anchor=(0.88, 0.2),
-            ncol=2,
-        )
+        if print_plot:
+            colors = ["black", "red"]
+            linewidths = [12, 4]
+            alphas = [0.2, 1]
+            lines = [
+                Line2D([0], [0], color=c, linewidth=lw, alpha=a)
+                for c, lw, a in zip(colors, linewidths, alphas)
+            ]
+            labels = ["80%CI", "AvgELCC(%)"]
+            plt.figlegend(
+                lines,
+                labels,
+                fontsize=24,
+                frameon=False,
+                bbox_to_anchor=(0.88, 0.2),
+                ncol=2,
+            )
         # store some objects, if desired
         self.solar_fig = solar_fig
         self.solar_axs = solar_axs
         self.solar_cols = cols
         self.solar_rows = rows
         # write plot
-        filename = "_".join([str(elem) for elem in arglist])
-        plt.savefig(
-            join(
-                "SOLAR", self.results_folder, vary_str + "_ELCC_" + filename + ".jpg",
-            ),
-            dpi=300,
-        )
+        if print_plot:
+            filename = "_".join([str(elem) for elem in arglist])
+            plt.savefig(
+                join(
+                    "SOLAR",
+                    self.results_folder,
+                    vary_str + "_ELCC_" + filename + ".jpg",
+                ),
+                dpi=300,
+            )
 
     def solar_case_load(self, arglist, colname, attr_string, n=1):
         casename = "solarELCC_" + self.casename
@@ -1108,7 +1145,10 @@ class ELCCplotter(object):
             return pd.concat([self.solar_df, df], sort=True)
         return df
 
-    def add_solar_line_to_existing_plot(self, vary_str, case_num, *args):
+    def add_solar_line_to_existing_plot(
+        self, vary_str, case_num, *args, print_plot=False, case_label="25%tx"
+    ):
+        self.label_list.append(case_label)
         pd.set_option("mode.chained_assignment", None)  # for now to suppress warnings
         linecolor_list = ["r", "b", "g"]
         arglist = []
@@ -1146,12 +1186,12 @@ class ELCCplotter(object):
                 legend=False,
             )
             subsetdf = case_solar_df[case_solar_df.resourcename == zone]
-            self.solar_axs[int(i / self.solar_cols), i % self.solar_cols].text(
-                subsetdf.xval.mean(),
-                subsetdf["avgelcc%"].mean() - 12.0,
-                "Tx=25%",
-                color=linecolor_list[case_num - 1],
-            )
+            # self.solar_axs[int(i / self.solar_cols), i % self.solar_cols].text(
+            #    subsetdf.xval.mean(),
+            #    subsetdf["avgelcc%"].mean() - 12.0,
+            #    "Tx=25%",
+            #    color=linecolor_list[case_num - 1],
+            # )
             self.solar_axs[int(i / self.solar_cols), i % self.solar_cols].fill_between(
                 subsetdf.xval,
                 subsetdf["minelcc%"],
@@ -1160,16 +1200,35 @@ class ELCCplotter(object):
                 alpha=0.2,
             )
             self.solar_axs[int(i / self.solar_cols), i % self.solar_cols].set_xlabel(
-                "StorageICAP (GW)"
+                "StorageICAP (GW)", fontsize=16
             )
 
-        filename = "_".join([str(elem) for elem in arglist])
-        plt.savefig(
-            join(
-                "SOLAR", self.results_folder, vary_str + "_ELCC_" + filename + ".jpg",
-            ),
-            dpi=300,
-        )
+        if print_plot:
+            colors = ["black", "red", "blue", "green", "orange", "purple"]
+            linewidths = [12, 4, 4, 4, 4, 4]
+            alphas = [0.2, 1, 1, 1, 1, 1]
+            lines = [
+                Line2D([0], [0], color=c, linewidth=lw, alpha=a)
+                for c, lw, a in zip(colors, linewidths, alphas)
+            ]
+            labels = ["80%CI"] + self.label_list
+            plt.figlegend(
+                lines,
+                labels,
+                fontsize=24,
+                frameon=False,
+                bbox_to_anchor=(0.88, 0.2),
+                ncol=2,
+            )
+            filename = "_".join([str(elem) for elem in arglist])
+            plt.savefig(
+                join(
+                    "SOLAR",
+                    self.results_folder,
+                    vary_str + "_ELCC_" + filename + ".jpg",
+                ),
+                dpi=300,
+            )
 
     def handler(self, casename, obj):
         if type(obj) == str:
@@ -1180,19 +1239,178 @@ class ELCCplotter(object):
         return casename
 
 
-elcc_obj = ELCCplotter(results)
-"""
-elcc_obj.storage_case_plot(
-    "varytxcap",
-    "0.2",
+class casemetricplotter(object):
+    def __init__(self, folder):
+        miso_map = pd.read_excel(
+            join(folder, "NREL-Seams Model (MISO).xlsx"), sheet_name="Mapping"
+        )
+        self.zones = list(miso_map["CEP Bus Name"])
+        self.results_folder = join(folder, "results")
+        self.metric_folder = join(self.results_folder, "metricresults")
+        self.casename = "VRE"
+        self.label_list = []
+
+    def load_case(
+        self,
+        casename,
+        n_iter,
+        arglist,
+        metric1="eue",
+        metric2="lole",
+        spatiotemporal="region",
+    ):
+        end_str_1 = spatiotemporal + metric1
+        end_str_2 = spatiotemporal + metric2
+        load_str = self.casename
+        for a in arglist:
+            load_str += a
+            load_str += "_"
+
+        str_1 = load_str + end_str_1
+        str_2 = load_str + end_str_2
+        df = pd.read_csv(join(self.metric_folder, str_1 + ".csv"), header=None)
+        df2 = pd.read_csv(join(self.metric_folder, str_2 + ".csv"), header=None)
+        df["casename"] = [casename for i in df.index]
+        df.columns = [metric1, "casename"]
+        df[metric2] = list(df2[0])
+        df["xval"] = [int(re.findall(r"\d+", i)[0]) for i in df.casename]
+        df["zone"] = self.zones
+        df["n_iter"] = [n_iter for i in df.index]
+        if hasattr(self, "case_df"):
+            df = pd.concat([self.case_df, df], sort=True)
+        self.metric = metric1
+        return df
+
+    def plot_case(self, *args, n_iter=0, txtitle="Tx=100%", add_legend=False):
+        self.label_list.append(txtitle)
+        arglist = []
+        for i, a in enumerate(args):
+            if type(a) == str:
+                arglist.append(a)
+            else:
+                caselist = a
+                place = i
+        for c in caselist:
+            arglist.insert(place, c)
+            self.case_df = self.load_case(c, n_iter, arglist)
+            arglist.pop(place)
+
+        self.case_df["ratio"] = [
+            0 if lole == 0.0 else eue / lole
+            for eue, lole in zip(self.case_df["eue"], self.case_df["lole"])
+        ]
+        # with cases zipped, plotting lines should now be possible for both eue and lole
+        if n_iter == 0:
+            self.rows = 6
+            self.cols = 4
+            self.fig, self.axs = plt.subplots(
+                self.rows, self.cols, sharex=True, sharey=True, figsize=(15, 8)
+            )
+            self.axs[self.rows - 1, self.cols - 2].set_visible(
+                False
+            )  # bottom r axis is off for visibility
+            self.axs[self.rows - 1, self.cols - 1].set_visible(
+                False
+            )  # bottom r axis is off for visibility
+            self.fig.suptitle(
+                "Region EUE/LOLE ratio as function of Storage ICAP", fontsize=30,
+            )
+        color_list = ["r", "b", "g", "y"]
+        linewidth_list = [8, 8, 8, 8]
+        # self.case_df.to_csv(join(self.results_folder, "mydf.csv"))
+        for i, z in enumerate(self.case_df.zone.unique()):
+            subsetdf = self.case_df[
+                (self.case_df.zone == z) & (self.case_df.n_iter == n_iter)
+            ]
+            subsetdf.plot.line(
+                x="xval",
+                y="ratio",
+                c=color_list[n_iter],
+                linewidth=2,
+                ax=self.axs[int(i / self.cols), i % self.cols],
+                legend=False,
+            )
+            # self.axs[int(i / self.cols), i % self.cols].text(
+            #    subsetdf.xval.mean(),
+            #    subsetdf["ratio"].mean(),
+            #    txtitle,
+            #    color=color_list[n_iter],
+            # )
+            self.axs[int(i / self.cols), i % self.cols].set_title(z)
+            self.axs[int(i / self.cols), i % self.cols].set_ylabel("Ratio", fontsize=16)
+            self.axs[int(i / self.cols), i % self.cols].set_xlabel(
+                "ICAP (GW)", fontsize=16
+            )
+
+        lines = [
+            Line2D([0], [0], color=color_list[i], linewidth=linewidth_list[i])
+            for i in range(len(self.label_list))
+        ]
+        labels = self.label_list
+        if add_legend:
+            plt.figlegend(
+                lines,
+                labels,
+                fontsize=20,
+                frameon=False,
+                bbox_to_anchor=(0.88, 0.2),
+                ncol=2,
+            )
+        plt.xticks(fontsize=12)
+        plt.yticks(fontsize=12)
+        # name and save file
+        filename = "_".join([str(elem) for elem in arglist])
+        filename = "RATIO" + "_" + filename  # self.metric.upper()
+        # plt.show()
+
+        plt.savefig(
+            join(self.results_folder, filename + ".jpg",), dpi=300,
+        )
+
+    def add_plot_line(self, *args):
+        return None
+
+
+case_obj = casemetricplotter(data)
+case_obj.plot_case(
+    "0.4",
     "wind",
     "2012base100%",
     "8760",
-    ["0%tx", "25%tx", "50%tx", "100%tx"],
+    "100%tx",
     "18%IRM",
-    "0GWstorage",
+    ["0GWstorage", "12GWstorage", "30GWstorage", "60GWstorage", "100GWstorage"],
+    "addgulfsolar",
 )
-"""
+case_obj.plot_case(
+    "0.4",
+    "wind",
+    "2012base100%",
+    "8760",
+    "50%tx",
+    "18%IRM",
+    ["0GWstorage", "12GWstorage", "30GWstorage", "60GWstorage", "100GWstorage"],
+    "addgulfsolar",
+    n_iter=1,
+    txtitle="Tx=50%",
+)
+case_obj.plot_case(
+    "0.4",
+    "wind",
+    "2012base100%",
+    "8760",
+    "25%tx",
+    "18%IRM",
+    ["0GWstorage", "12GWstorage", "30GWstorage", "60GWstorage", "100GWstorage"],
+    "addgulfsolar",
+    n_iter=2,
+    txtitle="Tx=25%",
+    add_legend=True,
+)
+
+
+elcc_obj = ELCCplotter(results)
+
 elcc_obj.solar_case_plot(
     "varysolarcapacity",
     "0.4",
@@ -1213,7 +1431,9 @@ elcc_obj.add_solar_line_to_existing_plot(
     "8760",
     "25%tx",
     "18%IRM",
-    ["0GWstorage","30GWstorage","60GWstorage"],
+    ["0GWstorage", "30GWstorage", "60GWstorage", "100GWstorage"],
+    print_plot=True,
+    case_label="25%tx",
 )
 
 elcc_obj.storage_case_plot(
@@ -1236,12 +1456,57 @@ elcc_obj.add_storage_line_to_existing_plot(
     "8760",
     "25%tx",
     "18%IRM",
+    ["0GWstorage", "12GWstorage", "30GWstorage", "100GWstorage"],
+    print_plot=True,
+    case_label="25%tx",
+)
+"""
+elcc_obj.add_storage_line_to_existing_plot(
+    "varystoragecapacity",
+    3,
+    "0.4",
+    "wind",
+    "2012base100%",
+    "8760",
+    "25%tx",
+    "18%IRM",
     ["0GWstorage", "12GWstorage", "30GWstorage", "60GWstorage", "100GWstorage"],
+    print_plot=False,
+    case_label="25%tx",
 )
 
+elcc_obj.add_storage_line_to_existing_plot(
+    "varystoragecapacity",
+    4,
+    "0.4",
+    "wind",
+    "2012base100%",
+    "8760",
+    "200%tx",
+    "18%IRM",
+    ["0GWstorage", "12GWstorage", "30GWstorage", "100GWstorage"],
+    print_plot=True,
+    case_label="200%tx",
+)
+
+elcc_obj.add_storage_line_to_existing_plot(
+    "varystoragecapacity",
+    5,
+    "0.4",
+    "wind",
+    "2012base100%",
+    "8760",
+    "10%tx",
+    "18%IRM",
+    ["0GWstorage", "30GWstorage"],
+    print_plot=True,
+    case_label="10%tx",
+)
+
+
 # storageELCC_VRE0.2_wind_2012base100%_8760_0%tx_18%IRM_nostorage_addgulfsolar
-"""
-test = plotter(data, results, casename, miso_data)
+
+test = plotter(data, join(results, "metricresults"), casename, miso_data)
 
 if NREL:
     nreltester = NRELEFSprofiles(data, NREL_profile)
@@ -1259,10 +1524,11 @@ test.updated_geography_plot()
 # test.geography_plot("region_lole")
 # test.geography_plot("region_eue")
 test.heatmap("period_eue")
+test.heatmap("period_lolp")
 # test.panel_tx_heatmap("utilization")  # takes awhile
 # test.tx_heatmap("15", "utilization")
 # test.tx_heatmap("15", "flow")
 # test.heatmap("period_lolp", mean=True)
+
 test.plot_zonal_loads(NREL=NREL, year_lab=NREL_year, scenario_lab=scenario_label)
 """
-

@@ -26,7 +26,7 @@ function run_path_model(input_path, casename, foldername, samples)
     utilizations_list = [results.utilizations[i].val for i in keys(results.utilizations)]
 
     # write desired outputs to csvs, using path-based naming convention
-    cd(joinpath(homedir(), "Desktop", foldername, "results"))
+    cd(joinpath(homedir(), "Desktop", foldername, "results", "metricresults"))
     case_str = casename[1:findlast(isequal('.'), casename) - 1]
     writedlm(string(case_str, "_", "regionlole.csv"), region_lole_list)
     writedlm(string(case_str, "_", "regioneue.csv"), region_eue_list)
@@ -268,6 +268,16 @@ ELCC_wrapper_wind(casename3,path3,path4,2500,.2,500)
 run_path_model(path4,casename4,foldername, 1000)
 run_path_model(path2,casename2,foldername, 1000)
 
+# loop some runs to speed things up
+# ,"12GW","30GW","100GW"
+for n in ["25%tx","50%tx","100%tx"]
+    for y in ["60GW"]
+        mycase = string("VRE0.4_wind_2012base100%_8760_", n, "_18%IRM_", y, "storage_addgulfsolar.pras")
+        println(mycase)
+        mypath = joinpath(homedir(), "Desktop", foldername, "PRAS_files", mycase)
+        run_path_model(mypath, mycase, foldername, 2500)
+    end
+end
 ## RUN FUNCTIONS ONCE YOU HAVE LOADED THEM
 # be careful with number of samples - the choice really affects runtime (though also more samples reduces error in results)
 run_path_elcc_minimal(path,path2,100,"26",500, .2)
