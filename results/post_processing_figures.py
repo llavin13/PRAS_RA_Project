@@ -833,9 +833,25 @@ class ELCCplotter(object):
         self.elcc_folder = join(results_folder, "ELCCresults")
         self.casename = "VRE"
 
-    def storage_case_plot(self, vary_str, *args, print_plot=False, case_label="100%tx"):
+    def storage_case_plot(
+        self,
+        vary_str,
+        *args,
+        print_plot=False,
+        case_label="100%tx",
+        cname="storageELCC_"
+    ):
         self.label_list = [case_label]
         arglist = []
+        self.plot_title_list = [
+            "VRE penetration (%energy)",
+            "casetype (n)",
+            "load (MW)",
+            "hours (/y)",
+            "tx (%)",
+            "IRM (%)",
+            "Storage ICAP (GW)",
+        ]
         for counter, i in enumerate(args):
             if type(i) == list:
                 argiter = i
@@ -844,7 +860,9 @@ class ELCCplotter(object):
                 arglist.append(i)
         for a in argiter:
             arglist.insert(place, a)
-            self.storage_df = self.storage_case_load(arglist, a, "storage_df")
+            self.storage_df = self.storage_case_load(
+                arglist, a, "storage_df", cname=cname
+            )
             arglist.pop(place)
         self.storage_df["minelcc%"] = (
             self.storage_df.minelcc * 100.0 / max(self.storage_df.maxelcc)
@@ -858,16 +876,20 @@ class ELCCplotter(object):
 
         self.storage_df["case_num"] = [1.0 for i in self.storage_df.index]
 
-        rows = 6
-        cols = 4
-        fig, axs = plt.subplots(rows, cols, sharex=True, sharey=True, figsize=(15, 8))
+        rows = 8
+        cols = 3
+        fig, axs = plt.subplots(rows, cols, sharex=True, sharey=True, figsize=(12, 12))
         axs[rows - 1, cols - 2].set_visible(
             False
         )  # bottom r axis is off for visibility
         axs[rows - 1, cols - 1].set_visible(
             False
         )  # bottom r axis is off for visibility
-        fig.suptitle("6-hour battery ELCC as function of Storage ICAP", fontsize=30)
+        fig.suptitle(
+            "ELCC as function of "
+            + self.plot_title_list[place][: self.plot_title_list[place].find("(")],
+            fontsize=30,
+        )
         for i, zone in enumerate(self.storage_df.resourcename.unique()):
             self.storage_df[self.storage_df.resourcename == zone].plot.line(
                 x="xval",
@@ -899,16 +921,19 @@ class ELCCplotter(object):
                 zone[: zone.find(re.findall(r"\d+", zone)[0])]
             )
             axs[int(i / cols), i % cols].set_ylabel("ELCC (%)", fontsize=16)
-            axs[int(i / cols), i % cols].set_xlabel("ICAP (GW)", fontsize=16)
+            axs[int(i / cols), i % cols].set_xlabel(
+                self.plot_title_list[place], fontsize=16
+            )
 
         # add a manual legend to your plot, if desired
         if print_plot:
             colors = ["black", "red"]
             linewidths = [12, 4]
+            linestyles = ["-", "-"]
             alphas = [0.2, 1]
             lines = [
-                Line2D([0], [0], color=c, linewidth=lw, alpha=a)
-                for c, lw, a in zip(colors, linewidths, alphas)
+                Line2D([0], [0], color=c, linewidth=lw, linestyle=ls, alpha=a)
+                for c, lw, ls, a in zip(colors, linewidths, linestyles, alphas)
             ]
             labels = ["80%CI", case_label]
             plt.figlegend(
@@ -916,9 +941,11 @@ class ELCCplotter(object):
                 labels,
                 fontsize=24,
                 frameon=False,
-                bbox_to_anchor=(0.88, 0.2),
+                bbox_to_anchor=(0.92, 0.15),
                 ncol=2,
             )
+            plt.tight_layout()
+            plt.subplots_adjust(top=0.9)
         # store some objects, if desired
         self.fig = fig
         self.axs = axs
@@ -933,11 +960,18 @@ class ELCCplotter(object):
             )
 
     def add_storage_line_to_existing_plot(
-        self, vary_str, case_num, *args, print_plot=False, case_label="25%tx"
+        self,
+        vary_str,
+        case_num,
+        *args,
+        print_plot=False,
+        case_label="25%tx",
+        cname="storageELCC_"
     ):
         self.label_list.append(case_label)
         pd.set_option("mode.chained_assignment", None)  # for now to suppress warnings
-        linecolor_list = ["r", "b", "g", "orange", "purple"]
+        linecolor_list = ["r", "b", "g", "r", "b"]
+        linestyle_list = ["-", "-", "-", ":", ":"]
         arglist = []
         # create attribute from pre-existing df, but clear it
         self.storage_df_2 = pd.DataFrame(columns=self.storage_df.columns)
@@ -951,7 +985,7 @@ class ELCCplotter(object):
             arglist.insert(place, a)
             # setattr(x, attr, 'magic')
             self.storage_df = self.storage_case_load(
-                arglist, a, "storage_df", n=case_num
+                arglist, a, "storage_df", n=case_num, cname=cname
             )
             # setattr(self, attr_ID,self.storage_case_load(arglist, a, attr_ID))
             arglist.pop(place)
@@ -971,6 +1005,7 @@ class ELCCplotter(object):
                 x="xval",
                 y="avgelcc%",
                 c=linecolor_list[case_num - 1],
+                linestyle=linestyle_list[case_num - 1],
                 ax=self.axs[int(i / self.cols), i % self.cols],
                 legend=False,
             )
@@ -990,15 +1025,18 @@ class ELCCplotter(object):
                 color="k",
                 alpha=0.2,
             )
-            self.axs[int(i / self.cols), i % self.cols].set_xlabel("StorageICAP (GW)")
+            self.axs[int(i / self.cols), i % self.cols].set_xlabel(
+                self.plot_title_list[place]
+            )
 
         if print_plot:
-            colors = ["black", "red", "blue", "green", "orange", "purple"]
+            colors = ["black", "red", "blue", "green", "red", "blue"]
             linewidths = [12, 4, 4, 4, 4, 4]
+            linestyles = ["-", "-", "-", "-", ":", ":"]
             alphas = [0.2, 1, 1, 1, 1, 1]
             lines = [
-                Line2D([0], [0], color=c, linewidth=lw, alpha=a)
-                for c, lw, a in zip(colors, linewidths, alphas)
+                Line2D([0], [0], color=c, linewidth=lw, linestyle=ls, alpha=a)
+                for c, lw, ls, a in zip(colors, linewidths, linestyles, alphas)
             ]
             labels = ["80%CI"] + self.label_list
             plt.figlegend(
@@ -1006,23 +1044,31 @@ class ELCCplotter(object):
                 labels,
                 fontsize=24,
                 frameon=False,
-                bbox_to_anchor=(0.88, 0.2),
+                bbox_to_anchor=(0.92, 0.15),
                 ncol=2,
             )
+            plt.tight_layout()
+            plt.subplots_adjust(top=0.9)
             filename = "_".join([str(elem) for elem in arglist])
             plt.savefig(
                 join(self.results_folder, vary_str + "_ELCC_" + filename + ".jpg",),
                 dpi=300,
             )
 
-    def storage_case_load(self, arglist, colname, attr_string, n=1):
-        casename = "storageELCC_" + self.casename
+    def storage_case_load(
+        self, arglist, colname, attr_string, n=1, cname="storageELCC_"
+    ):
+        casename = cname + self.casename
         for i in arglist:
             casename = self.handler(casename, i)
         casename += "addgulfsolar"
         df = pd.read_csv(join(self.elcc_folder, casename + ".csv"))
         df["caseID"] = [colname for i in df.index]
-        df["xval"] = [int(re.search(r"\d+", colname).group()) for i in df.index]
+        colval = re.search(r"\d+\.?\d*", colname).group()
+        df["xval"] = [
+            int(colval) if float(colval) > 1.0 else int(float(colval) * 100.0)
+            for i in df.index
+        ]
         if n != 1:
             df["case_num"] = [n for i in df.index]
         if hasattr(self, attr_string):
@@ -1409,6 +1455,34 @@ case_obj.plot_case(
 )
 
 
+VREplot = ELCCplotter(results)
+
+VREplot.storage_case_plot(
+    "varyVREcapacity",
+    ["0.2", "0.4"],
+    "wind",
+    "2012base100%",
+    "8760",
+    "100%tx",
+    "18%IRM",
+    "30GWstorage",
+    case_label="100%tx",
+)
+
+VREplot.add_storage_line_to_existing_plot(
+    "varyVREcapacity",
+    2,
+    ["0.2", "0.4"],
+    "wind",
+    "2012base100%",
+    "8760",
+    "25%tx",
+    "18%IRM",
+    "30GWstorage",
+    print_plot=True,
+    case_label="25%tx",
+)
+
 elcc_obj = ELCCplotter(results)
 
 elcc_obj.solar_case_plot(
@@ -1444,7 +1518,8 @@ elcc_obj.storage_case_plot(
     "8760",
     "100%tx",
     "18%IRM",
-    ["0GWstorage", "12GWstorage", "30GWstorage", "100GWstorage"],
+    ["0GWstorage", "30GWstorage", "100GWstorage"],
+    case_label="100%tx",
 )
 
 elcc_obj.add_storage_line_to_existing_plot(
@@ -1456,10 +1531,56 @@ elcc_obj.add_storage_line_to_existing_plot(
     "8760",
     "25%tx",
     "18%IRM",
-    ["0GWstorage", "12GWstorage", "30GWstorage", "100GWstorage"],
-    print_plot=True,
+    ["0GWstorage", "12GWstorage", "30GWstorage", "60GWstorage", "100GWstorage"],
+    print_plot=False,
     case_label="25%tx",
 )
+
+elcc_obj.add_storage_line_to_existing_plot(
+    "varystoragecapacity",
+    3,
+    "0.4",
+    "wind",
+    "2012base100%",
+    "8760",
+    "50%tx",
+    "18%IRM",
+    ["0GWstorage", "12GWstorage", "30GWstorage", "100GWstorage"],
+    print_plot=False,
+    case_label="50%tx",
+)
+
+elcc_obj.add_storage_line_to_existing_plot(
+    "varystoragecapacity",
+    4,
+    "0.4",
+    "wind",
+    "2012base100%",
+    "8760",
+    "100%tx",
+    "18%IRM",
+    ["0GWstorage", "12GWstorage", "30GWstorage", "100GWstorage"],
+    print_plot=False,
+    case_label="solar100%tx",
+    cname="solarELCC_",
+)
+
+elcc_obj.add_storage_line_to_existing_plot(
+    "varystoragecapacity",
+    5,
+    "0.4",
+    "wind",
+    "2012base100%",
+    "8760",
+    "25%tx",
+    "18%IRM",
+    ["0GWstorage", "30GWstorage", "60GWstorage", "100GWstorage"],
+    print_plot=True,
+    case_label="solar25%tx",
+    cname="solarELCC_",
+)
+
+
 """
 elcc_obj.add_storage_line_to_existing_plot(
     "varystoragecapacity",
