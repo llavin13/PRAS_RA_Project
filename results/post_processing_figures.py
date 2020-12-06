@@ -41,8 +41,8 @@ hifld_datapath = join(os.environ["HOMEPATH"], "Desktop", folder, "HIFLD_shapefil
 shp_path = os.environ["CONDA_PREFIX"] + r"\Library\share\gdal"
 results = join(data, "results")
 
-# miso_data = LoadMISOData(data, miso_datapath, hifld_datapath, shp_path)
-# miso_data.convert_CRS()
+miso_data = LoadMISOData(data, miso_datapath, hifld_datapath, shp_path)
+miso_data.convert_CRS()
 
 
 class plotter(object):
@@ -828,10 +828,14 @@ class plotter(object):
 
 
 class ELCCplotter(object):
-    def __init__(self, results_folder):
-        self.results_folder = results_folder
-        self.elcc_folder = join(results_folder, "ELCCresults")
+    def __init__(self, folder, pct_cap=False, rankplot=False):
+        self.folder = folder
+        self.results_folder = join(folder, "results")
+        self.pras_folder = join(folder, "PRAS_files")
+        self.elcc_folder = join(self.results_folder, "ELCCresults")
         self.casename = "VRE"
+        self.pct_cap = pct_cap
+        self.rankplot = rankplot
 
     def storage_case_plot(
         self,
@@ -842,6 +846,12 @@ class ELCCplotter(object):
         cname="storageELCC_"
     ):
         self.label_list = [case_label]
+        self.color_list, self.line_list, self.linestyle_list, self.alpha_list = (
+            [],
+            [],
+            [],
+            [],
+        )
         arglist = []
         self.plot_title_list = [
             "VRE penetration (%energy)",
@@ -851,6 +861,7 @@ class ELCCplotter(object):
             "tx (%)",
             "IRM (%)",
             "Storage ICAP (GW)",
+            "Storage ICAP (% Peak Load)",
         ]
         for counter, i in enumerate(args):
             if type(i) == list:
@@ -864,6 +875,9 @@ class ELCCplotter(object):
                 arglist, a, "storage_df", cname=cname
             )
             arglist.pop(place)
+
+        if self.pct_cap:
+            place += 1
         self.storage_df["minelcc%"] = (
             self.storage_df.minelcc * 100.0 / max(self.storage_df.maxelcc)
         )
@@ -890,7 +904,16 @@ class ELCCplotter(object):
             + self.plot_title_list[place][: self.plot_title_list[place].find("(")],
             fontsize=30,
         )
-        for i, zone in enumerate(self.storage_df.resourcename.unique()):
+        if hasattr(self, "ranks"):
+            sorted_list = [
+                x
+                for _, x in sorted(
+                    zip(list(self.ranks), self.storage_df.resourcename.unique())
+                )
+            ]
+        else:
+            sorted_list = self.storage_df.resourcename.unique()
+        for i, zone in enumerate(sorted_list):
             self.storage_df[self.storage_df.resourcename == zone].plot.line(
                 x="xval",
                 y="avgelcc%",
@@ -970,8 +993,39 @@ class ELCCplotter(object):
     ):
         self.label_list.append(case_label)
         pd.set_option("mode.chained_assignment", None)  # for now to suppress warnings
-        linecolor_list = ["r", "b", "g", "r", "b"]
-        linestyle_list = ["-", "-", "-", ":", ":"]
+        linecolor_list = [
+            "r",
+            "b",
+            "g",
+            "yellow",
+            "purple",
+            "cyan",
+            "lime",
+            "red",
+            "blue",
+            "g",
+            "yellow",
+            "purple",
+            "cyan",
+            "lime",
+        ]
+        linestyle_list = [
+            "-",
+            "-",
+            "-",
+            "-",
+            "-",
+            "-",
+            "-",
+            ":",
+            ":",
+            ":",
+            ":",
+            ":",
+            ":",
+            ":",
+            ":",
+        ]
         arglist = []
         # create attribute from pre-existing df, but clear it
         self.storage_df_2 = pd.DataFrame(columns=self.storage_df.columns)
@@ -989,6 +1043,8 @@ class ELCCplotter(object):
             )
             # setattr(self, attr_ID,self.storage_case_load(arglist, a, attr_ID))
             arglist.pop(place)
+        if self.pct_cap:
+            place += 1
         case_storage_df = self.storage_df[self.storage_df.case_num == case_num]
         case_storage_df["minelcc%"] = (
             case_storage_df.minelcc * 100.0 / max(case_storage_df.maxelcc)
@@ -999,9 +1055,49 @@ class ELCCplotter(object):
         case_storage_df["avgelcc%"] = (
             case_storage_df["maxelcc%"] + case_storage_df["minelcc%"]
         ) * 0.5
-
-        for i, zone in enumerate(case_storage_df.resourcename.unique()):
-            case_storage_df[case_storage_df.resourcename == zone].plot.line(
+        if hasattr(self, "ranks"):
+            sorted_list = [
+                x
+                for _, x in sorted(
+                    zip(list(self.ranks), case_storage_df.resourcename.unique())
+                )
+            ]
+        else:
+            sorted_list = case_storage_df.resourcename.unique()
+        for i, zone in enumerate(sorted_list):
+            subsetdf = case_storage_df[case_storage_df.resourcename == zone]
+            """
+            if subsetdf.cname.values[0] == "solarELCC_":
+                storagezone = re.findall(r"\b[A-Z]+-*[A-Z]*", zone)[0][:-1] + "6hour"
+                subsetdf_2 = self.storage_df[
+                    (self.storage_df.case_num == (case_num - 3))
+                    & (self.storage_df.resourcename == storagezone)
+                ]
+                #get avg elcc for sub2
+                subsetdf_2["minelcc%"] = (
+                    subsetdf_2.minelcc * 100.0 / max(case_storage_df.maxelcc)
+                )
+                subsetdf_2["maxelcc%"] = (
+                    subsetdf_2.maxelcc * 100.0 / max(case_storage_df.maxelcc)
+                )
+                subsetdf_2["avgelcc%"] = (
+                    subsetdf_2["maxelcc%"] + subsetdf_2["minelcc%"]
+                ) * 0.5
+                # find the delta
+                
+                subsetdf_2["deltaelcc%"] = subsetdf["avgelcc%"] - subsetdf_2["avgelcc%"]
+                print(subsetdf_2["deltaelcc%"])
+                subsetdf_2.plot.line(
+                    x="xval",
+                    y="deltaelcc%",
+                    c=linecolor_list[case_num - 1],
+                    linestyle="--",
+                    ax=self.axs[int(i / self.cols), i % self.cols],
+                    legend=False,
+                )
+                # plot the delta!
+            """
+            subsetdf.plot.line(
                 x="xval",
                 y="avgelcc%",
                 c=linecolor_list[case_num - 1],
@@ -1009,7 +1105,7 @@ class ELCCplotter(object):
                 ax=self.axs[int(i / self.cols), i % self.cols],
                 legend=False,
             )
-            subsetdf = case_storage_df[case_storage_df.resourcename == zone]
+
             """
             self.axs[int(i / self.cols), i % self.cols].text(
                 subsetdf.xval.mean(),
@@ -1028,12 +1124,21 @@ class ELCCplotter(object):
             self.axs[int(i / self.cols), i % self.cols].set_xlabel(
                 self.plot_title_list[place]
             )
-
+        # append data
+        self.color_list.append(linecolor_list[case_num - 1])
+        self.line_list.append(4)
+        self.linestyle_list.append(linestyle_list[case_num - 1])
+        self.alpha_list.append(1.0)
         if print_plot:
-            colors = ["black", "red", "blue", "green", "red", "blue"]
-            linewidths = [12, 4, 4, 4, 4, 4]
-            linestyles = ["-", "-", "-", "-", ":", ":"]
-            alphas = [0.2, 1, 1, 1, 1, 1]
+            # try to grab and print the deltas
+            colors = ["black", "red"] + self.color_list
+            linewidths = [12, 4] + self.line_list
+            linestyles = ["-", "-"] + self.linestyle_list
+            alphas = [0.2, 1.0] + self.alpha_list
+            # colors = ["black", "red", "blue", "green", "red", "blue"]
+            # linewidths = [12, 4, 4, 4, 4, 4]
+            # linestyles = ["-", "-", "-", "-", ":", ":"]
+            # alphas = [0.2, 1, 1, 1, 1, 1]
             lines = [
                 Line2D([0], [0], color=c, linewidth=lw, linestyle=ls, alpha=a)
                 for c, lw, ls, a in zip(colors, linewidths, linestyles, alphas)
@@ -1042,7 +1147,7 @@ class ELCCplotter(object):
             plt.figlegend(
                 lines,
                 labels,
-                fontsize=24,
+                fontsize=16,
                 frameon=False,
                 bbox_to_anchor=(0.92, 0.15),
                 ncol=2,
@@ -1058,19 +1163,54 @@ class ELCCplotter(object):
     def storage_case_load(
         self, arglist, colname, attr_string, n=1, cname="storageELCC_"
     ):
+        # out of curiosity, what can be done with the casename?
+
         casename = cname + self.casename
+        pras_filename = self.casename
         for i in arglist:
             casename = self.handler(casename, i)
+            pras_filename = self.handler(pras_filename, i)
         casename += "addgulfsolar"
+        pras_filename += "addgulfsolar.pras"
+
+        # get the loads so you can determine the normalized EUE and rank cases
+
+        # if you wish to convert storage GW to % of peak load, you need to know peak load, so grab it
+        if self.pct_cap == True:
+            with h5py.File(join(self.pras_folder, pras_filename), "r") as f:
+                peakload = f["regions"]["load"][:].sum(axis=1).max()
         df = pd.read_csv(join(self.elcc_folder, casename + ".csv"))
+        if not hasattr(self, "zonal_loads") and self.rankplot:
+            with h5py.File(join(self.pras_folder, pras_filename), "r") as f:
+                print("grabbing loads from " + pras_filename)
+                self.zonal_loads = f["regions"]["load"][:].sum(axis=0)
+                normeue = np.asarray(
+                    [
+                        float(a) / float(b)
+                        for a, b in zip(df.ZoneEUE, list(self.zonal_loads))
+                    ]
+                )
+                temp = normeue.argsort()
+                self.ranks = np.empty_like(temp)
+                self.ranks[temp] = np.arange(len(normeue))
         df["caseID"] = [colname for i in df.index]
         colval = re.search(r"\d+\.?\d*", colname).group()
+        # may want to modify colvalue to be a %
+        if self.pct_cap and float(colval) > 1.0:
+            print("oldcolval is: " + str(colval))
+            colval = (1000.0 * float(colval)) / float(peakload)  # with conversion to GW
+            print("new is: " + str(colval))
         df["xval"] = [
             int(colval) if float(colval) > 1.0 else int(float(colval) * 100.0)
             for i in df.index
         ]
         if n != 1:
             df["case_num"] = [n for i in df.index]
+        df["cname"] = [cname for i in df.index]
+        # df["original_load"] = list(self.zonal_loads)
+        # df["NormEUE"] = [
+        #    float(a) / float(b) for a, b in zip(df.ZoneEUE, df.original_load)
+        # ]
         if hasattr(self, attr_string):
             return pd.concat([self.storage_df, df], sort=True)
         return df
@@ -1404,6 +1544,8 @@ class casemetricplotter(object):
             )
         plt.xticks(fontsize=12)
         plt.yticks(fontsize=12)
+        plt.tight_layout()
+        plt.subplots_adjust(top=0.9)
         # name and save file
         filename = "_".join([str(elem) for elem in arglist])
         filename = "RATIO" + "_" + filename  # self.metric.upper()
@@ -1455,60 +1597,9 @@ case_obj.plot_case(
 )
 
 
-VREplot = ELCCplotter(results)
+### ELCC plotting as fxn of storage ICAP ###
 
-VREplot.storage_case_plot(
-    "varyVREcapacity",
-    ["0.2", "0.4"],
-    "wind",
-    "2012base100%",
-    "8760",
-    "100%tx",
-    "18%IRM",
-    "30GWstorage",
-    case_label="100%tx",
-)
-
-VREplot.add_storage_line_to_existing_plot(
-    "varyVREcapacity",
-    2,
-    ["0.2", "0.4"],
-    "wind",
-    "2012base100%",
-    "8760",
-    "25%tx",
-    "18%IRM",
-    "30GWstorage",
-    print_plot=True,
-    case_label="25%tx",
-)
-
-elcc_obj = ELCCplotter(results)
-
-elcc_obj.solar_case_plot(
-    "varysolarcapacity",
-    "0.4",
-    "wind",
-    "2012base100%",
-    "8760",
-    "100%tx",
-    "18%IRM",
-    ["0GWstorage", "12GWstorage", "30GWstorage", "100GWstorage"],
-)
-
-elcc_obj.add_solar_line_to_existing_plot(
-    "varysolarcapacity",
-    2,
-    "0.4",
-    "wind",
-    "2012base100%",
-    "8760",
-    "25%tx",
-    "18%IRM",
-    ["0GWstorage", "30GWstorage", "60GWstorage", "100GWstorage"],
-    print_plot=True,
-    case_label="25%tx",
-)
+elcc_obj = ELCCplotter(data, pct_cap=True, rankplot=True)
 
 elcc_obj.storage_case_plot(
     "varystoragecapacity",
@@ -1518,7 +1609,7 @@ elcc_obj.storage_case_plot(
     "8760",
     "100%tx",
     "18%IRM",
-    ["0GWstorage", "30GWstorage", "100GWstorage"],
+    ["0GWstorage", "12GWstorage", "30GWstorage", "100GWstorage"],
     case_label="100%tx",
 )
 
@@ -1550,9 +1641,123 @@ elcc_obj.add_storage_line_to_existing_plot(
     case_label="50%tx",
 )
 
+
 elcc_obj.add_storage_line_to_existing_plot(
     "varystoragecapacity",
     4,
+    "0.4",
+    "wind",
+    "2012base100%",
+    "8760",
+    "10%tx",
+    "18%IRM",
+    ["0GWstorage", "12GWstorage", "30GWstorage", "100GWstorage"],
+    print_plot=False,
+    case_label="10%tx",
+)
+
+elcc_obj.add_storage_line_to_existing_plot(
+    "varystoragecapacity",
+    5,
+    "0.4",
+    "wind",
+    "2012base100%",
+    "8760",
+    "0%tx",
+    "18%IRM",
+    ["0GWstorage", "12GWstorage", "30GWstorage", "100GWstorage"],
+    print_plot=False,
+    case_label="0%tx",
+)
+
+elcc_obj.add_storage_line_to_existing_plot(
+    "varystoragecapacity",
+    6,
+    "0.4",
+    "wind",
+    "2012base100%",
+    "8760",
+    "150%tx",
+    "18%IRM",
+    ["0GWstorage", "12GWstorage", "30GWstorage", "100GWstorage"],
+    print_plot=False,
+    case_label="150%tx",
+)
+
+elcc_obj.add_storage_line_to_existing_plot(
+    "varystoragecapacity",
+    7,
+    "0.4",
+    "wind",
+    "2012base100%",
+    "8760",
+    "200%tx",
+    "18%IRM",
+    ["0GWstorage", "12GWstorage", "30GWstorage", "100GWstorage"],
+    print_plot=True,
+    case_label="200%tx",
+)
+
+# the next plot should include solar
+solar_elcc_obj = ELCCplotter(data, pct_cap=True, rankplot=True)
+
+solar_elcc_obj.storage_case_plot(
+    "SOLARvarystoragecapacity",
+    "0.4",
+    "wind",
+    "2012base100%",
+    "8760",
+    "100%tx",
+    "18%IRM",
+    ["0GWstorage", "12GWstorage", "30GWstorage", "100GWstorage"],
+    case_label="100%tx",
+)
+
+solar_elcc_obj.add_storage_line_to_existing_plot(
+    "SOLARvarystoragecapacity",
+    2,
+    "0.4",
+    "wind",
+    "2012base100%",
+    "8760",
+    "25%tx",
+    "18%IRM",
+    ["0GWstorage", "12GWstorage", "30GWstorage", "60GWstorage", "100GWstorage"],
+    print_plot=False,
+    case_label="25%tx",
+)
+
+solar_elcc_obj.add_storage_line_to_existing_plot(
+    "SOLARvarystoragecapacity",
+    5,
+    "0.4",
+    "wind",
+    "2012base100%",
+    "8760",
+    "0%tx",
+    "18%IRM",
+    ["0GWstorage", "12GWstorage", "30GWstorage", "100GWstorage"],
+    print_plot=False,
+    case_label="0%tx",
+)
+
+solar_elcc_obj.add_storage_line_to_existing_plot(
+    "SOLARvarystoragecapacity",
+    7,
+    "0.4",
+    "wind",
+    "2012base100%",
+    "8760",
+    "200%tx",
+    "18%IRM",
+    ["0GWstorage", "12GWstorage", "30GWstorage", "100GWstorage"],
+    print_plot=False,
+    case_label="200%tx",
+)
+
+solar_elcc_obj.add_storage_line_to_existing_plot(
+    "SOLARvarystoragecapacity",
+    8,
     "0.4",
     "wind",
     "2012base100%",
@@ -1565,9 +1770,9 @@ elcc_obj.add_storage_line_to_existing_plot(
     cname="solarELCC_",
 )
 
-elcc_obj.add_storage_line_to_existing_plot(
-    "varystoragecapacity",
-    5,
+solar_elcc_obj.add_storage_line_to_existing_plot(
+    "SOLARvarystoragecapacity",
+    9,
     "0.4",
     "wind",
     "2012base100%",
@@ -1575,53 +1780,276 @@ elcc_obj.add_storage_line_to_existing_plot(
     "25%tx",
     "18%IRM",
     ["0GWstorage", "30GWstorage", "60GWstorage", "100GWstorage"],
-    print_plot=True,
+    print_plot=False,
     case_label="solar25%tx",
     cname="solarELCC_",
 )
 
-
-"""
-elcc_obj.add_storage_line_to_existing_plot(
-    "varystoragecapacity",
-    3,
+solar_elcc_obj.add_storage_line_to_existing_plot(
+    "SOLARvarystoragecapacity",
+    12,
     "0.4",
     "wind",
     "2012base100%",
     "8760",
-    "25%tx",
+    "0%tx",
     "18%IRM",
-    ["0GWstorage", "12GWstorage", "30GWstorage", "60GWstorage", "100GWstorage"],
+    ["0GWstorage", "12GWstorage", "30GWstorage", "100GWstorage"],
     print_plot=False,
-    case_label="25%tx",
+    case_label="solar0%tx",
+    cname="solarELCC_",
 )
 
-elcc_obj.add_storage_line_to_existing_plot(
-    "varystoragecapacity",
-    4,
+solar_elcc_obj.add_storage_line_to_existing_plot(
+    "SOLARvarystoragecapacity",
+    14,
     "0.4",
     "wind",
     "2012base100%",
     "8760",
     "200%tx",
     "18%IRM",
-    ["0GWstorage", "12GWstorage", "30GWstorage", "100GWstorage"],
+    ["0GWstorage", "30GWstorage", "60GWstorage", "100GWstorage"],
     print_plot=True,
-    case_label="200%tx",
+    case_label="solar200%tx",
+    cname="solarELCC_",
 )
 
-elcc_obj.add_storage_line_to_existing_plot(
-    "varystoragecapacity",
-    5,
-    "0.4",
+
+VREplot = ELCCplotter(data, rankplot=True)
+
+VREplot.storage_case_plot(
+    "varyVREcapacity",
+    ["0.2", "0.4", "0.6", "0.8"],
     "wind",
     "2012base100%",
     "8760",
-    "10%tx",
+    "100%tx",
     "18%IRM",
-    ["0GWstorage", "30GWstorage"],
+    "30GWstorage",
+    case_label="100%tx",
+)
+
+VREplot.add_storage_line_to_existing_plot(
+    "varyVREcapacity",
+    2,
+    ["0.2", "0.4", "0.6", "0.8"],
+    "wind",
+    "2012base100%",
+    "8760",
+    "25%tx",
+    "18%IRM",
+    "30GWstorage",
+    print_plot=False,
+    case_label="25%tx",
+)
+
+VREplot.add_storage_line_to_existing_plot(
+    "varyVREcapacity",
+    8,
+    ["0.2", "0.4", "0.6", "0.8"],
+    "wind",
+    "2012base100%",
+    "8760",
+    "100%tx",
+    "18%IRM",
+    "30GWstorage",
+    print_plot=False,
+    case_label="solar100%tx",
+    cname="solarELCC_",
+)
+
+VREplot.add_storage_line_to_existing_plot(
+    "varyVREcapacity",
+    9,
+    ["0.2", "0.4", "0.6", "0.8"],
+    "wind",
+    "2012base100%",
+    "8760",
+    "25%tx",
+    "18%IRM",
+    "30GWstorage",
     print_plot=True,
-    case_label="10%tx",
+    case_label="solar25%tx",
+    cname="solarELCC_",
+)
+
+
+VREplot0GW = ELCCplotter(data, rankplot=True)
+
+VREplot0GW.storage_case_plot(
+    "0GWvaryVREcapacity",
+    ["0.2", "0.4", "0.6"],
+    "wind",
+    "2012base100%",
+    "8760",
+    "100%tx",
+    "18%IRM",
+    "0GWstorage",
+    case_label="100%tx",
+)
+
+VREplot0GW.add_storage_line_to_existing_plot(
+    "0GWvaryVREcapacity",
+    2,
+    ["0.2", "0.4", "0.6"],
+    "wind",
+    "2012base100%",
+    "8760",
+    "25%tx",
+    "18%IRM",
+    "0GWstorage",
+    print_plot=False,
+    case_label="25%tx",
+)
+
+VREplot0GW.add_storage_line_to_existing_plot(
+    "0GWvaryVREcapacity",
+    8,
+    ["0.2", "0.4", "0.6"],
+    "wind",
+    "2012base100%",
+    "8760",
+    "100%tx",
+    "18%IRM",
+    "0GWstorage",
+    print_plot=False,
+    case_label="solar100%tx",
+    cname="solarELCC_",
+)
+
+VREplot0GW.add_storage_line_to_existing_plot(
+    "varyVREcapacity",
+    9,
+    ["0.2", "0.4", "0.6"],
+    "wind",
+    "2012base100%",
+    "8760",
+    "25%tx",
+    "18%IRM",
+    "0GWstorage",
+    print_plot=True,
+    case_label="solar25%tx",
+    cname="solarELCC_",
+)
+
+
+VREplot60GW = ELCCplotter(data, rankplot=True)
+
+VREplot60GW.storage_case_plot(
+    "60GWvaryVREcapacity",
+    ["0.2", "0.6"],
+    "wind",
+    "2012base100%",
+    "8760",
+    "100%tx",
+    "18%IRM",
+    "60GWstorage",
+    case_label="100%tx",
+)
+
+VREplot60GW.add_storage_line_to_existing_plot(
+    "60GWvaryVREcapacity",
+    2,
+    ["0.2", "0.4", "0.6"],
+    "wind",
+    "2012base100%",
+    "8760",
+    "25%tx",
+    "18%IRM",
+    "60GWstorage",
+    print_plot=False,
+    case_label="25%tx",
+)
+
+VREplot60GW.add_storage_line_to_existing_plot(
+    "60GWvaryVREcapacity",
+    8,
+    ["0.2", "0.6"],
+    "wind",
+    "2012base100%",
+    "8760",
+    "100%tx",
+    "18%IRM",
+    "60GWstorage",
+    print_plot=False,
+    case_label="solar100%tx",
+    cname="solarELCC_",
+)
+
+
+VREplot60GW.add_storage_line_to_existing_plot(
+    "60GWvaryVREcapacity",
+    9,
+    ["0.2", "0.4", "0.6"],
+    "wind",
+    "2012base100%",
+    "8760",
+    "25%tx",
+    "18%IRM",
+    "60GWstorage",
+    print_plot=True,
+    case_label="solar25%tx",
+    cname="solarELCC_",
+)
+
+
+balancedVREplot30GW = ELCCplotter(data, rankplot=True)
+
+balancedVREplot30GW.storage_case_plot(
+    "balanced30GWvaryVREcapacity",
+    ["0.2", "0.4", "0.6", "0.8"],
+    "balanced",
+    "2012base100%",
+    "8760",
+    "100%tx",
+    "18%IRM",
+    "30GWstorage",
+    case_label="100%tx",
+)
+
+balancedVREplot30GW.add_storage_line_to_existing_plot(
+    "balanced30GWvaryVREcapacity",
+    2,
+    ["0.2", "0.4", "0.6", "0.8"],
+    "balanced",
+    "2012base100%",
+    "8760",
+    "25%tx",
+    "18%IRM",
+    "30GWstorage",
+    print_plot=False,
+    case_label="25%tx",
+)
+
+balancedVREplot30GW.add_storage_line_to_existing_plot(
+    "balanced30GWvaryVREcapacity",
+    8,
+    ["0.2", "0.4", "0.6"],
+    "balanced",
+    "2012base100%",
+    "8760",
+    "100%tx",
+    "18%IRM",
+    "30GWstorage",
+    print_plot=False,
+    case_label="solar100%tx",
+    cname="solarELCC_",
+)
+
+balancedVREplot30GW.add_storage_line_to_existing_plot(
+    "balanced30GWvaryVREcapacity",
+    9,
+    ["0.2", "0.4", "0.6"],
+    "balanced",
+    "2012base100%",
+    "8760",
+    "25%tx",
+    "18%IRM",
+    "30GWstorage",
+    print_plot=True,
+    case_label="solar25%tx",
+    cname="solarELCC_",
 )
 
 
@@ -1652,4 +2080,4 @@ test.heatmap("period_lolp")
 # test.heatmap("period_lolp", mean=True)
 
 test.plot_zonal_loads(NREL=NREL, year_lab=NREL_year, scenario_lab=scenario_label)
-"""
+

@@ -1,0 +1,89 @@
+,index,zone,type,capacity
+0,MN-C_Utility Wind,MN-C,Utility Wind,3445.7333079226887
+1,MN-C_Distributed Solar,MN-C,Distributed Solar,291.4301802720682
+2,MN-C_Utility Solar,MN-C,Utility Solar,462.8596980791672
+3,MN-NE_Utility Wind,MN-NE,Utility Wind,1967.28219659063
+4,MN-NE_Distributed Solar,MN-NE,Distributed Solar,166.38705145293886
+5,MN-NE_Utility Solar,MN-NE,Utility Solar,264.26178760172644
+6,MN-SE_Utility Wind,MN-SE,Utility Wind,14686.984495486682
+7,MN-SE_Distributed Solar,MN-SE,Distributed Solar,1242.1827682749931
+8,MN-SE_Utility Solar,MN-SE,Utility Solar,1972.8785143191067
+9,ATC_Utility Wind,ATC,Utility Wind,3345.441164358034
+10,ATC_Distributed Solar,ATC,Distributed Solar,1180.743940361659
+11,ATC_Utility Solar,ATC,Utility Solar,590.3719701808295
+12,UPPC_Utility Wind,UPPC,Utility Wind,54.558835641966404
+13,UPPC_Distributed Solar,UPPC,Distributed Solar,19.256059638341082
+14,UPPC_Utility Solar,UPPC,Utility Solar,100.0
+15,MEC_Utility Wind,MEC,Utility Wind,12372.264817188932
+16,MEC_Distributed Solar,MEC,Distributed Solar,508.4492390625589
+17,MEC_Utility Solar,MEC,Utility Solar,790.9210385417582
+18,IA-E_Utility Wind,IA-E,Utility Wind,8175.335184147882
+19,IA-E_Distributed Solar,IA-E,Distributed Solar,335.97267880059786
+20,IA-E_Utility Solar,IA-E,Utility Solar,522.6241670231523
+21,CBPC-NIPCO_Utility Wind,CBPC-NIPCO,Utility Wind,1352.3999986631852
+22,CBPC-NIPCO_Distributed Solar,CBPC-NIPCO,Distributed Solar,55.57808213684323
+23,CBPC-NIPCO_Utility Solar,CBPC-NIPCO,Utility Solar,86.45479443508947
+24,IL-C_Utility Wind,IL-C,Utility Wind,4752.629137523867
+25,IL-C_Distributed Solar,IL-C,Distributed Solar,792.1048562539778
+26,IL-C_Utility Solar,IL-C,Utility Solar,1386.1834984444613
+27,SIPC_Utility Wind,SIPC,Utility Wind,47.37086247613333
+28,SIPC_Distributed Solar,SIPC,Distributed Solar,100.0
+29,SIPC_Utility Solar,SIPC,Utility Solar,13.816501555538888
+30,MISO-MO_Utility Wind,MISO-MO,Utility Wind,655.8809405904515
+31,MISO-MO_Distributed Solar,MISO-MO,Distributed Solar,459.11665841331603
+32,MISO-MO_Utility Solar,MISO-MO,Utility Solar,524.7047524723612
+33,AECIZ_Utility Wind,AECIZ,Utility Wind,344.1190594095485
+34,AECIZ_Distributed Solar,AECIZ,Distributed Solar,240.88334158668397
+35,AECIZ_Utility Solar,AECIZ,Utility Solar,275.2952475276388
+36,IN-S_Utility Wind,IN-S,Utility Wind,347.1541299399745
+37,IN-S_Distributed Solar,IN-S,Distributed Solar,156.77928448902074
+38,IN-S_Utility Solar,IN-S,Utility Solar,559.9260160322169
+39,IN-C_Utility Wind,IN-C,Utility Wind,2047.045098781548
+40,IN-C_Distributed Solar,IN-C,Distributed Solar,924.4719800948926
+41,IN-C_Utility Solar,IN-C,Utility Solar,3301.685643196045
+42,NIPS_Utility Wind,NIPS,Utility Wind,705.8007712784776
+43,NIPS_Distributed Solar,NIPS,Distributed Solar,318.7487354160866
+44,NIPS_Utility Solar,NIPS,Utility Solar,1138.388340771738
+45,CONS_Utility Wind,CONS,Utility Wind,2918.3579766572725
+46,CONS_Distributed Solar,CONS,Distributed Solar,800.1949290834457
+47,CONS_Utility Solar,CONS,Utility Solar,376.5623195686803
+48,DECO_Utility Wind,DECO,Utility Wind,3281.6420233427275
+49,DECO_Distributed Solar,DECO,Distributed Solar,899.8050709165543
+50,DECO_Utility Solar,DECO,Utility Solar,423.4376804313197
+51,EES-ARK_Utility Wind,EES-ARK,Utility Wind,100.0
+52,EES-ARK_Distributed Solar,EES-ARK,Distributed Solar,700.0
+53,EES-ARK_Utility Solar,EES-ARK,Utility Solar,4000.0
+54,LA-GULF_Utility Wind,LA-GULF,Utility Wind,100.0
+55,LA-GULF_Distributed Solar,LA-GULF,Distributed Solar,685.0082468363997
+56,LA-GULF_Utility Solar,LA-GULF,Utility Solar,1565.7331356260565
+57,LA-N_Utility Wind,LA-N,Utility Wind,100.0
+58,LA-N_Distributed Solar,LA-N,Distributed Solar,972.0115975226582
+59,LA-N_Utility Solar,LA-N,Utility Solar,2221.7407943375047
+60,EES-TX_Utility Wind,EES-TX,Utility Wind,100.0
+61,EES-TX_Distributed Solar,EES-TX,Distributed Solar,442.980155640942
+62,EES-TX_Utility Solar,EES-TX,Utility Solar,1012.5260700364388
+63,MISO-MS_Utility Wind,MISO-MS,Utility Wind,100.0
+64,MISO-MS_Distributed Solar,MISO-MS,Distributed Solar,500.0
+65,MISO-MS_Utility Solar,MISO-MS,Utility Solar,1800.0
+66,MN-C_storage,MN-C,Storage,0.0
+67,MN-NE_storage,MN-NE,Storage,0.0
+68,MN-SE_storage,MN-SE,Storage,0.0
+69,ATC_storage,ATC,Storage,0.0
+70,UPPC_storage,UPPC,Storage,0.0
+71,MEC_storage,MEC,Storage,0.0
+72,IA-E_storage,IA-E,Storage,0.0
+73,CBPC-NIPCO_storage,CBPC-NIPCO,Storage,0.0
+74,IL-C_storage,IL-C,Storage,0.0
+75,SIPC_storage,SIPC,Storage,0.0
+76,MISO-MO_storage,MISO-MO,Storage,0.0
+77,AECIZ_storage,AECIZ,Storage,0.0
+78,IN-S_storage,IN-S,Storage,0.0
+79,IN-C_storage,IN-C,Storage,0.0
+80,NIPS_storage,NIPS,Storage,0.0
+81,CONS_storage,CONS,Storage,0.0
+82,DECO_storage,DECO,Storage,0.0
+83,EES-ARK_storage,EES-ARK,Storage,0.0
+84,LA-GULF_storage,LA-GULF,Storage,0.0
+85,LA-N_storage,LA-N,Storage,0.0
+86,EES-TX_storage,EES-TX,Storage,0.0
+87,MISO-MS_storage,MISO-MS,Storage,0.0

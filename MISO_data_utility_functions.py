@@ -16,6 +16,7 @@ import matplotlib.patches as patches
 from matplotlib.legend_handler import HandlerPatch
 import descartes
 from scipy.spatial.distance import cdist
+
 import h5py
 import requests
 from zipfile import ZipFile
@@ -989,15 +990,22 @@ class CreateHDF5(object):
     def hstack_helper(self, array, value):
         return np.hstack((array, np.ones((self.row_len, 1)) * value))
 
-    def add_all_storage_resource(self, total_capacity, duration, alloc_method="equal"):
+    def add_all_storage_resource(
+        self, total_capacity, duration, alloc_method="equal", fname="vretest"
+    ):
         load_fracs = (
             self.seams_load_df.iloc[:, 1:].sum(axis=0)
             / self.seams_load_df.iloc[:, 1:].sum(axis=0).sum()
         )
+        print(self.seams_load_df.iloc[:, 1:].sum(axis=0))
+        print(type(self.seams_load_df.iloc[:, 1:].sum(axis=0)))
         # vre_fracs
         vre_capacity_df = pd.DataFrame.from_dict(
             self.re_capacity_dict, orient="index", columns=["zone", "type", "capacity"]
         )
+        print(vre_capacity_df)
+        print(type(vre_capacity_df))
+        self.capacity_df_export = vre_capacity_df.reset_index()
         zonal_vre_capacity_df = (
             vre_capacity_df[["zone", "capacity"]].groupby("zone").sum()
         )
@@ -1029,8 +1037,23 @@ class CreateHDF5(object):
                 + zone
                 + " to storage profiles"
             )
-
+            # append to the exportable df
+            export_index = len(self.capacity_df_export.index)
+            self.capacity_df_export.loc[export_index] = [
+                zone + "_storage",
+                zone,
+                "Storage",
+                capacity,
+            ]
             self.add_storage_resource(zone, capacity, duration)
+        self.capacity_df_export.to_csv(
+            os.path.join(
+                self.folder_datapath,
+                "results",
+                "caseICAPs",
+                alloc_method + fname + ".csv",
+            )
+        )
 
     def add_storage_resource(
         self,
