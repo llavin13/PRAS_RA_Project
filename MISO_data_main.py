@@ -40,12 +40,12 @@ re_penetration = "0.4"
 profile_year = 2012
 NREL = False
 NREL_year, NREL_profile = 2040, "EFSLoadProfile_Reference_Moderate"
-pras_filename = "VRE0.4_wind_2012base100%_48_100%tx_18%IRM_0GWstorage_LAonly_addgulfsolar"
+pras_filename = "VRE0.4_wind_2012base100%_48_0%tx_18%IRM_0GWstorage_LAonly_addgulfsolar"
 load_scalar = 1  # how much to scale resulting load profile by... 1 should be default
 target_IRM = 0.18  # as a fraction
 use_target_IRM = True  #
 storage_capacity = 0  # total storage capacity, in MW
-scale_transmission_capacity = 1.  # rescales transmission capacities between zones
+scale_transmission_capacity = 0.  # rescales transmission capacities between zones
 z_list = [26,28] #limits inclusion of zones
 # fliename convention is VREscenario_REscenario_year_hoursused_txmodifier_RMmodifier_storage
 

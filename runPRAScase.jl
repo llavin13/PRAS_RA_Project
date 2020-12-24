@@ -259,7 +259,7 @@ ELCC_wrapper_wind(casename,path,path2,2500,.2,500)
 ELCC_wrapper_wind(casename3,path3,path4,2500,.2,500)
 
 # run and create results (EUE, LOLE, etc.) for a single case
-run_path_model(path1,casename1,foldername, 10000)
+run_path_model(path,casename,foldername, 10000)
 run_path_model(path2,casename2,foldername, 1000)
 
 # loop some runs to speed things up
