@@ -587,6 +587,7 @@ class CreateHDF5(object):
         vre_profile_df,
         miso_geography_df,
         vre_scenario_df,
+        retained_zones=[]
     ):
         self.row_len = row_len
         self.slicer = slice_in_index
@@ -629,6 +630,21 @@ class CreateHDF5(object):
                 list(self.seams_mapping_df["CEP Bus ID"])
             )
         ].reset_index()
+
+        #additional cleaning, if desired to subset to even smaller 
+        if retained_zones != []:
+            retained_zone_strings = [str(float(i)) for i in retained_zones]
+            retained_zone_names = list(self.seams_mapping_df[self.seams_mapping_df["CEP Bus ID"].isin(retained_zones)]["CEP Bus Name"].values)
+
+            self.seams_generation_df = self.seams_generation_df[self.seams_generation_df["Bubble"].isin(retained_zones)].reset_index()
+            self.cleaned_seams_transmission_df = self.cleaned_seams_transmission_df[self.cleaned_seams_transmission_df["From"].isin(retained_zone_strings)].reset_index()
+            self.cleaned_seams_transmission_df = self.cleaned_seams_transmission_df[self.cleaned_seams_transmission_df["To"].isin(retained_zone_strings)].reset_index()
+            self.vre_scenario_df = self.vre_scenario_df[self.vre_scenario_df.index.isin(retained_zone_names)]
+            retained_zone_names.insert(0,"Date")
+            self.seams_load_df = self.seams_load_df[retained_zone_names]
+            self.seams_mapping_df = self.seams_mapping_df[self.seams_mapping_df["CEP Bus ID"].isin(retained_zones)]
+            print(self.seams_mapping_df)
+            #self.cleaned_seams_transmission_df = self.seams_transmission_df[self.seams_transmission_df["FROM"]]
 
     def create_gens_np(self):
         ### GENERATORS ###
@@ -997,14 +1013,14 @@ class CreateHDF5(object):
             self.seams_load_df.iloc[:, 1:].sum(axis=0)
             / self.seams_load_df.iloc[:, 1:].sum(axis=0).sum()
         )
-        print(self.seams_load_df.iloc[:, 1:].sum(axis=0))
-        print(type(self.seams_load_df.iloc[:, 1:].sum(axis=0)))
+        #print(self.seams_load_df.iloc[:, 1:].sum(axis=0))
+        #print(type(self.seams_load_df.iloc[:, 1:].sum(axis=0)))
         # vre_fracs
         vre_capacity_df = pd.DataFrame.from_dict(
             self.re_capacity_dict, orient="index", columns=["zone", "type", "capacity"]
         )
-        print(vre_capacity_df)
-        print(type(vre_capacity_df))
+        #print(vre_capacity_df)
+        #print(type(vre_capacity_df))
         self.capacity_df_export = vre_capacity_df.reset_index()
         zonal_vre_capacity_df = (
             vre_capacity_df[["zone", "capacity"]].groupby("zone").sum()

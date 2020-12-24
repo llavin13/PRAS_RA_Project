@@ -1,16 +1,10 @@
 using PRAS, FileIO, JLD, DelimitedFiles, DataFrames, CSV, XLSX, TickTock
-foldername = "test11.16" # whatever you named the folde
-casename = "VRE0.4_wind_2012base100%_8760_25%tx_18%IRM_12GWstorage_addgulfsolar.pras"
-casename2 = "VRE0.4_wind_2012base100%_8760_25%tx_18%IRM_12GWstorage_addgulfsolar.pras"
-
-casename3 = "VRE0.4_wind_2012base100%_8760_25%tx_18%IRM_30GWstorage_addgulfsolar.pras"
-casename4 = "VRE0.4_wind_2012base100%_8760_25%tx_18%IRM_30GWstorage_addgulfsolar.pras"
+foldername = "cases12.23" # whatever you named the folde
+casename = "VRE0.4_wind_2012base100%_48_100%tx_18%IRM_0GWstorage_LAonly_addgulfsolar.pras"
+casename2 = "VRE0.4_wind_2012base100%_8760_100%tx_18%IRM_0GWstorage_LAonly_addgulfsolar.pras"
 
 path = joinpath(homedir(), "Desktop", foldername, "PRAS_files", casename)
 path2 = joinpath(homedir(), "Desktop", foldername, "PRAS_files", casename2)
-
-path3 = joinpath(homedir(), "Desktop", foldername, "PRAS_files", casename3)
-path4 = joinpath(homedir(), "Desktop", foldername, "PRAS_files", casename4)
 
 function run_path_model(input_path, casename, foldername, samples)
     model = SystemModel(input_path)
@@ -265,7 +259,7 @@ ELCC_wrapper_wind(casename,path,path2,2500,.2,500)
 ELCC_wrapper_wind(casename3,path3,path4,2500,.2,500)
 
 # run and create results (EUE, LOLE, etc.) for a single case
-run_path_model(path4,casename4,foldername, 1000)
+run_path_model(path1,casename1,foldername, 10000)
 run_path_model(path2,casename2,foldername, 1000)
 
 # loop some runs to speed things up

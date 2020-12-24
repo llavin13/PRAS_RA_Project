@@ -34,21 +34,22 @@ from MISO_data_utility_functions import (
 # general inputs
 RE_sheet = "Wind-heavy by energy"
 # RE_sheet = "More balanced by energy"
-row_len = 8760  # for HDF5 file
+row_len = 48  # for HDF5 file
 slice_in_index = 0  # 0 if you want to start on 1/1
 re_penetration = "0.4"
 profile_year = 2012
 NREL = False
 NREL_year, NREL_profile = 2040, "EFSLoadProfile_Reference_Moderate"
-pras_filename = "VRE0.4_wind_2012base100%_8760_10%tx_18%IRM_12GWstorage_addgulfsolar"
+pras_filename = "VRE0.4_wind_2012base100%_48_100%tx_18%IRM_0GWstorage_LAonly_addgulfsolar"
 load_scalar = 1  # how much to scale resulting load profile by... 1 should be default
 target_IRM = 0.18  # as a fraction
 use_target_IRM = True  #
-storage_capacity = 12100  # total storage capacity, in MW
-scale_transmission_capacity = 0.1  # rescales transmission capacities between zones
+storage_capacity = 0  # total storage capacity, in MW
+scale_transmission_capacity = 1.  # rescales transmission capacities between zones
+z_list = [26,28] #limits inclusion of zones
 # fliename convention is VREscenario_REscenario_year_hoursused_txmodifier_RMmodifier_storage
 
-folder = "test11.16"  # whatever you name your folder when pulled from Github
+folder = "cases12.23"  # whatever you name your folder when pulled from Github
 
 if slice_in_index + row_len > 8760:
     raise ValueError("cannot index beyond 8760")
@@ -140,6 +141,7 @@ HDF5_data = CreateHDF5(
     vre_data_df,
     final_miso_data,
     vre_capacity_scenarios,
+    retained_zones = z_list
 )
 HDF5_data.create_gens_np()
 HDF5_data.create_zone_np(tx_scalar=scale_transmission_capacity)
@@ -173,7 +175,7 @@ if use_target_IRM:
 
 
 # add a single storage resource, if desired
-HDF5_data.add_storage_resource("DECO", 0.1, 6)  # generic storage resource is added
+HDF5_data.add_storage_resource("LA-GULF", 0.1, 6)  # generic storage resource is added
 prof_id = np.random.choice(
     final_miso_data[final_miso_data.FINAL_SEAMS_ZONE == "LA-GULF"].Name.unique()
 )
