@@ -19,10 +19,10 @@ library(xtable)
 baseWD <- "C:/Users/llavin/Desktop/cases12.23"
 setwd(paste(baseWD, "", sep="/"))
 
-readFile <- function(filename,filetype,WD,directory){
+readFile <- function(filename,filetype,WD,directory,header=FALSE){
   csvname <- paste0(filename,"_",filetype,".csv")
   setwd(paste(WD,directory,sep="/"))
-  df <- read.csv(csvname,header=FALSE)
+  df <- read.csv(csvname,header=header)
   #print(rownames(df))
   return(df)
 }
@@ -36,6 +36,8 @@ loadResults <- function(WD,casename){
                         name = "regions/load")))
   genDF <- t(as.data.frame(h5read(file = paste0(casename,".pras"), 
                                   name = "generators/capacity")))
+  
+  genCSV <- readFile(casename,"gens",resultsWD,"metricresults",header=TRUE)
   
   setwd(WD)
   #load xlsx files
@@ -58,8 +60,8 @@ loadResults <- function(WD,casename){
   #modelLMP <- AddDatetime(modelLMP)
   
   # return results
-  results <- list(regionEUE,regionLOLE,periodEUE,periodLOLP,regionperiodEUE,regionperiodLOLP,utilizations,flows,loadDF,genDF)
-  names(results) <- c("regionEUE","regionLOLE","periodEUE","periodLOLP","regionperiodEUE","regionperiodLOLP","utilizations","flows","load","gens")
+  results <- list(regionEUE,regionLOLE,periodEUE,periodLOLP,regionperiodEUE,regionperiodLOLP,utilizations,flows,loadDF,genDF,genCSV)
+  names(results) <- c("regionEUE","regionLOLE","periodEUE","periodLOLP","regionperiodEUE","regionperiodLOLP","utilizations","flows","load","gens","gensdata")
   return(results)
 }
 
@@ -165,27 +167,39 @@ plotTXuse <- function(rlist){
 }
 
 plotCAPstack <- function(rlist){
-  for (i in 1:length(rlist)){
+  #load data
+  len <- length(rlist)
+  nlist <- list()
+  for (i in 1:len){
+    nlist[[i]] <- as.data.frame(rlist[[i]]$gensdata)
     rlist[[i]] <- as.data.frame(rlist[[i]]$load)
+    
     #rlist[[i]] <- as.data.frame(t(rlist[[i]])) #transpose
+    nlist[[i]]$label <- names(rlist[i])
     rlist[[i]]$label <- names(rlist[i]) #may want better label
     rlist[[i]]$time <- seq(from = 1, to = length(rlist[[i]]$V1), by = 1)
   }
+  
   loads <- do.call("rbind", rlist)
   loads <- melt(loads, id.vars = c("label","time"), measure.vars = c("V1","V2"))
   peakloads <- loads %>% 
     group_by(variable) %>% 
     summarise(peakLoad = max(value))
-  #now make barplot of peak loads, and should eventually include gens
-  
+  #gen data
+  gensdata <- do.call("rbind",nlist)
+  gencap <- gensdata %>% group_by(category,Bubble,label) %>% summarise(capacity=sum(Max.Capacity))
+  #print(gencap)
+  #now make  of peak loads, and should eventually include gens
+  return(gencap)
 }
-plotCAPstack(resultList)
+g<-plotCAPstack(resultList)
 
 results1 <- loadResults(baseWD,"VRE0.4_wind_2012base100%_48_100%tx_18%IRM_0GWstorage_LAonly_addgulfsolar")
 results2 <- loadResults(baseWD,"VRE0.4_wind_2012base100%_48_0%tx_18%IRM_0GWstorage_LAonly_addgulfsolar")
 
 resultList <- list(results1,results2)
 names(resultList) <- c("100%Tx","0%Tx")
+
 
 plotLOLPtimeseries(resultList)
 a <- plotregionalLOLPtimeseries(resultList)

@@ -643,9 +643,9 @@ class CreateHDF5(object):
             retained_zone_names.insert(0,"Date")
             self.seams_load_df = self.seams_load_df[retained_zone_names]
             self.seams_mapping_df = self.seams_mapping_df[self.seams_mapping_df["CEP Bus ID"].isin(retained_zones)]
-            print(self.seams_mapping_df)
+            
             #self.cleaned_seams_transmission_df = self.seams_transmission_df[self.seams_transmission_df["FROM"]]
-
+    
     def create_gens_np(self):
         ### GENERATORS ###
         self.generators_dtype = np.dtype(
@@ -1272,6 +1272,11 @@ class CreateHDF5(object):
         if not os.path.exists(os.path.join(self.folder_datapath, "PRAS_files")):
             os.mkdir(os.path.join(self.folder_datapath, "PRAS_files"))
         os.chdir(os.path.join(self.folder_datapath, "PRAS_files"))
+
+        #write generation info from the case to a csv
+        self.seams_generation_df.to_csv(
+            os.path.join(self.folder_datapath, "results","metricresults",filename+"_gens"+".csv"))
+
         with h5py.File(pras_name, "w", track_order=True) as f:
             # attrs
             for k, v in self.metadata.items():
@@ -1298,6 +1303,7 @@ class CreateHDF5(object):
             generators_group = f.create_group("generators")
 
             print("...gendataprinted")
+
             generators_group.create_dataset(
                 "_core", data=self.generators_data
             )  # gcore =
