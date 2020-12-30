@@ -12,6 +12,7 @@ require(lubridate)
 library(reshape2)
 library(skimr)
 library(dplyr)
+require(cowplot)
 #library(sjPlot)
 library(table1)
 library(xtable)
@@ -36,9 +37,16 @@ loadResults <- function(WD,casename){
                         name = "regions/load")))
   genDF <- t(as.data.frame(h5read(file = paste0(casename,".pras"), 
                                   name = "generators/capacity")))
+  geninfo <- as.data.frame(h5read(file = paste0(casename,".pras"), 
+                                    name = "generators/_core"))
   
+  geninfo$capacity <- as.vector(apply(genDF, 2, FUN=max))
+  #colnames(geninfo) <- c("Generator.Name")
   genCSV <- readFile(casename,"gens",resultsWD,"metricresults",header=TRUE)
+  genCSV <- merge(genCSV, geninfo, by.x = "Generator.Name", 
+                     by.y = "name", all.x = FALSE, all.y = TRUE)
   
+  #get geninfo into gencsv by merging
   setwd(WD)
   #load xlsx files
   MISO_transmission <- read_excel("NREL-Seams Model (MISO).xlsx", sheet = "Transmission")
@@ -60,8 +68,8 @@ loadResults <- function(WD,casename){
   #modelLMP <- AddDatetime(modelLMP)
   
   # return results
-  results <- list(regionEUE,regionLOLE,periodEUE,periodLOLP,regionperiodEUE,regionperiodLOLP,utilizations,flows,loadDF,genDF,genCSV)
-  names(results) <- c("regionEUE","regionLOLE","periodEUE","periodLOLP","regionperiodEUE","regionperiodLOLP","utilizations","flows","load","gens","gensdata")
+  results <- list(regionEUE,regionLOLE,periodEUE,periodLOLP,regionperiodEUE,regionperiodLOLP,utilizations,flows,loadDF,genDF,genCSV,MISO_mapping)
+  names(results) <- c("regionEUE","regionLOLE","periodEUE","periodLOLP","regionperiodEUE","regionperiodLOLP","utilizations","flows","load","gens","gensdata","mapper")
   return(results)
 }
 
@@ -87,12 +95,12 @@ plotLOLPtimeseries <- function(rlist){
     theme(legend.text = element_text(size=24),
           legend.title = element_blank(),
           legend.position = "bottom",
-          plot.title = element_text(size = 40, face = "bold", hjust = 0.5),
+          plot.title = element_blank(),
           axis.title.y = element_text(size=24),
           axis.title.x = element_text(size=24),
           axis.text.x= element_text(size=24),
-          axis.text.y= element_text(size=20)) +
-    ggtitle(paste("LOLPs are fun"))
+          axis.text.y= element_text(size=20))
+    
   
   setwd(paste(baseWD, "results", "Rfigures", sep="/"))
   ggsave(paste0("test",".png"), width=12, height=6)
@@ -112,22 +120,21 @@ plotregionalLOLPtimeseries <- function(rlist){
   regionperiodLOLP <- melt(regionperiodLOLP, id.vars = c("label","time"), measure.vars = c("V1","V2"))
   regionperiodLOLP$percentLOLP <- regionperiodLOLP$value*100 #scales frac to %
   
-  ggplot(data=regionperiodLOLP, aes(x=time,y=percentLOLP,linetype=label,color=variable)) +
+  g<-ggplot(data=regionperiodLOLP, aes(x=time,y=percentLOLP,linetype=label,color=variable)) +
     geom_line(lwd=2) + theme_classic() + ylab("LOLP(%)") + xlab("Hour") +
     guides(fill=guide_legend(title="")) +
     theme(legend.text = element_text(size=24),
           legend.title = element_blank(),
           legend.position = "bottom",
-          plot.title = element_text(size = 40, face = "bold", hjust = 0.5),
+          plot.title = element_blank(),
           axis.title.y = element_text(size=24),
           axis.title.x = element_text(size=24),
           axis.text.x= element_text(size=24),
-          axis.text.y= element_text(size=20)) +
-    ggtitle(paste("regional LOLPs are fun"))
+          axis.text.y= element_text(size=20))
   
   setwd(paste(baseWD, "results", "Rfigures", sep="/"))
   ggsave(paste0("regionLOLPseries",".png"), width=12, height=6)
-  return(regionperiodLOLP)
+  return(g)
 }
 
 #stack EUEs? #prefer to stack and group zone capacities
@@ -150,23 +157,24 @@ plotTXuse <- function(rlist){
   #utilizations$time <- seq(from = 1, to = length(utilizations$V1), by = 1)
   utilizations$percentuse <- utilizations$V1*100 #scales frac to %
   
-  ggplot(data=utilizations, aes(x=time,y=percentuse,color=label)) +
+  g<-ggplot(data=utilizations, aes(x=time,y=percentuse,color=label)) +
     geom_line(lwd=2) + theme_classic() + ylab("Utilization(%)") + xlab("Hour") +
     guides(fill=guide_legend(title="")) +
     theme(legend.text = element_text(size=24),
           legend.title = element_blank(),
-          plot.title = element_text(size = 40, face = "bold", hjust = 0.5),
+          plot.title = element_blank(),
           axis.title.y = element_text(size=24),
           axis.title.x = element_text(size=24),
           axis.text.x= element_text(size=24),
-          axis.text.y= element_text(size=20)) +
-    ggtitle(paste("LOLPs are fun"))
+          axis.text.y= element_text(size=20))
   
   setwd(paste(baseWD, "results", "Rfigures", sep="/"))
   ggsave(paste0("txtest",".png"), width=12, height=6)
+  return(g)
 }
 
 plotCAPstack <- function(rlist){
+  mapDF <- rlist[[1]]$mapper
   #load data
   len <- length(rlist)
   nlist <- list()
@@ -181,26 +189,81 @@ plotCAPstack <- function(rlist){
   }
   
   loads <- do.call("rbind", rlist)
+  
   loads <- melt(loads, id.vars = c("label","time"), measure.vars = c("V1","V2"))
   peakloads <- loads %>% 
-    group_by(variable) %>% 
+    group_by(variable,label) %>% 
     summarise(peakLoad = max(value))
   #gen data
   gensdata <- do.call("rbind",nlist)
-  gencap <- gensdata %>% group_by(category,Bubble,label) %>% summarise(capacity=sum(Max.Capacity))
-  #print(gencap)
-  #now make  of peak loads, and should eventually include gens
-  return(gencap)
+  gencap <- gensdata %>% group_by(category.y,region,label) %>% summarise(capacity=sum(capacity))
+  gencap$type <- rep("Gen",length(gencap$region))
+  
+  #aggregate labels?
+  gencap <- gencap[gencap$label==gencap$label[1],]
+  peakloads <- peakloads[peakloads$label==peakloads$label[1],]
+  #add rows with loads
+  for (i in 1:length(peakloads$variable)){
+    gencap[nrow(gencap) + 1,] = list("Load",unique(gencap$region)[i],peakloads$label[i],peakloads$peakLoad[i],"Load")
+  }
+  
+  #filter for mapping
+  colnames(mapDF) <- c("ID","ISO","Bus") 
+  mapNames <- mapDF %>% filter(
+    ID %in% as.numeric(unique(gencap$region))
+  )
+  
+  gencap$Bus <- mapvalues(gencap$region, 
+                                   from=unique(gencap$region), 
+                                   to=mapNames$Bus)
+  
+  
+  gencap$category.y <- factor(gencap$category.y, levels = c("Load", "Distributed_Solar", "Utility_Solar",
+                                                            "Utility_Wind", "Gas_ST","Gas_GT","CC","Coal_ST",
+                                                            "Waste HT_ST","Biomass","Nuclear","Hydro"))
+  fillcolors <- c("grey","red","yellow","cyan","orange","orange","orange",
+                  "black","brown","green","purple","blue")
+  #plotting grouped stacked bars
+  g <- ggplot(gencap, aes(x = type, y = capacity, fill = category.y)) + 
+    geom_bar(stat = 'identity', position = 'stack') + facet_grid(~ Bus) +
+    theme_classic() + xlab("") +
+    scale_fill_manual(values=fillcolors) +
+    guides(fill=guide_legend(title="")) +
+    theme(legend.text = element_text(size=24),
+          legend.title = element_blank(),
+          plot.title = element_blank(),
+          axis.title.y = element_text(size=24),
+          axis.title.x = element_text(size=24),
+          strip.text.x = element_text(size=24),
+          axis.text.x= element_text(size=24),
+          axis.text.y= element_text(size=20))
+  
+  setwd(paste(baseWD, "results", "Rfigures", sep="/"))
+  ggsave(paste0("stackgentest",".png"), width=12, height=6)
+  return(g)
 }
 g<-plotCAPstack(resultList)
 
 results1 <- loadResults(baseWD,"VRE0.4_wind_2012base100%_48_100%tx_18%IRM_0GWstorage_LAonly_addgulfsolar")
 results2 <- loadResults(baseWD,"VRE0.4_wind_2012base100%_48_0%tx_18%IRM_0GWstorage_LAonly_addgulfsolar")
-
 resultList <- list(results1,results2)
 names(resultList) <- c("100%Tx","0%Tx")
 
-
-plotLOLPtimeseries(resultList)
 a <- plotregionalLOLPtimeseries(resultList)
-plotTXuse(resultList)
+b<-plotCAPstack(resultList)
+c<-plotTXuse(resultList)
+
+#make a multi-panel plot
+grid <- plot_grid(a, b, labels = c('A', 'B'), label_size = 32)
+
+# first align the top-row plot (p3) with the left-most plot of the
+# bottom row (p1)
+plots <- align_plots(a, c, align = 'v', axis = 'l')
+# then build the top row
+top_row <- plot_grid(plots[[1]], b, labels = c('A', 'B'),
+                     rel_widths = c(1, .5),label_size = 32)
+# then combine with the top row for final plot
+grid <- plot_grid(top_row, plots[[2]], labels = c('', 'C'), label_size = 32, ncol = 1)
+
+setwd(paste(baseWD, "results", "Rfigures", sep="/"))
+ggsave(paste0("gridplot",".png"), width=24, height=12)
