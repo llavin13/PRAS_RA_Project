@@ -1,0 +1,3 @@
+resourcename,capacity,pval,samples,minelcc,maxelcc,zoneEUE,zoneLOLE
+LA-GULFUtilitySolar,100,0.2,10000,13,14,1.0087319125000002e6,1758.0751
+LA-NUtilitySolar,100,0.2,10000,0,100,45.228199999999994,0.1589

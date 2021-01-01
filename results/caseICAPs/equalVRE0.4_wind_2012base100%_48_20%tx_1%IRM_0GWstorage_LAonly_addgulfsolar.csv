@@ -1,0 +1,9 @@
+,index,zone,type,capacity
+0,LA-GULF_Utility Wind,LA-GULF,Utility Wind,100.0
+1,LA-GULF_Distributed Solar,LA-GULF,Distributed Solar,685.0082468363992
+2,LA-GULF_Utility Solar,LA-GULF,Utility Solar,1565.7331356260554
+3,LA-N_Utility Wind,LA-N,Utility Wind,100.0
+4,LA-N_Distributed Solar,LA-N,Distributed Solar,972.0115975226574
+5,LA-N_Utility Solar,LA-N,Utility Solar,2221.740794337503
+6,LA-GULF_storage,LA-GULF,Storage,0.0
+7,LA-N_storage,LA-N,Storage,0.0

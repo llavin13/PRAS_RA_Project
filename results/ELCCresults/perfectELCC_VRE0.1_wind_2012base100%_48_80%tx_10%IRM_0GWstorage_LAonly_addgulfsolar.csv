@@ -1,0 +1,3 @@
+resourcename,capacity,pval,samples,minelcc,maxelcc,zoneEUE,zoneLOLE
+LA-GULFDistributedSolar,100,0.2,100000,75,100,0.02261000000000002,0.00016999999999999985
+LA-NDistributedSolar,100,0.2,100000,0,100,0.0,0.0

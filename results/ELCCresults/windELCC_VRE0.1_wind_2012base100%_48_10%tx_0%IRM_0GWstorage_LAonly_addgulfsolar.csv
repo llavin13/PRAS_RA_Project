@@ -1,0 +1,3 @@
+resourcename,capacity,pval,samples,minelcc,maxelcc,zoneEUE,zoneLOLE
+LA-GULFUtilityWind,100,0.2,100000,93,96,2445.222739999999,6.34992
+LA-NUtilityWind,100,0.2,100000,0,100,1.0000000000000018e-5,1.0000000000000018e-5

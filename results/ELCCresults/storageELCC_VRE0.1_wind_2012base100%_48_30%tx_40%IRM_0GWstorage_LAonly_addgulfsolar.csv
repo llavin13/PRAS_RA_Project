@@ -1,0 +1,3 @@
+resourcename,capacity,energy,pval,samples,minelcc,maxelcc,ZoneEUE,ZoneLOLE
+LA-GULF6hour,100,600,0.2,1000000,96,100,1.4502620000000033,0.012417999999999986
+LA-N6hour,100,600,0.2,1000000,98,100,0.0,0.0
