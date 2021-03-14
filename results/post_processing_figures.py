@@ -97,10 +97,12 @@ class plotter(object):
         #print(busID)
         del self.miso_loads[zone]
         self.miso_map.drop(idx,inplace=True)
+        self.miso_map.reset_index(inplace=True)
         self.miso_tx.drop(self.miso_tx[self.miso_tx['From']==float(busID)].index,inplace=True)
         self.miso_tx.drop(self.miso_tx[self.miso_tx['To']==float(busID)].index,inplace=True)
         self.miso_tx.reset_index(inplace=True)
         self.miso_bus_zone.drop(self.miso_bus_zone[self.miso_bus_zone['Seams Region']==zone].index,inplace=True)
+        self.miso_bus_zone.reset_index(inplace=True)
         return None
 
     def format_data(self):
@@ -374,12 +376,17 @@ class plotter(object):
             right_on="names",
         )
         self.gdf_merge = gdf_merge
+
+        #gdf_proj must be re-ordered
+        print(self.gdf_merge)
+        print(gdf_proj)
+
         line_gdf = self.create_lines(line_attribute, month=months, hour=hours)
         labs = list(gdf_merge["Seams_Region"])
         attribute_max = gdf_merge[attribute].max()
         boundary.geometry = boundary.geometry.buffer(0)
         boundary_shape = cascaded_union(boundary.geometry)
-        coords = points_to_coords(gdf_proj.geometry)
+        coords = points_to_coords(gdf_merge.geometry)
         poly_shapes, pts,poly_to_pt_assignments = voronoi_regions_from_coords(
             coords, boundary_shape
         )
@@ -415,9 +422,9 @@ class plotter(object):
             plot_points(
                 myaxes, pts, 2, labels=labs, alpha=0.0, label_fontsize=16
             )  # mostly just adds the zonal labels
+        
         elif plot_type == "fills":
             for i, s in enumerate(poly_shapes):
-                #print(i,s)
                 plot_voronoi_polys(
                     myaxes,
                     s,
@@ -442,20 +449,27 @@ class plotter(object):
             )  # mostly just adds the zonal labels
         else:
             raise ValueError("plot_type must be either fills or bubbles")
-
+        
+        #decide which zones to exclude
+        mymax = max(gdf_merge.EUE)*.01
+        myindices = list(gdf_merge[gdf_merge['EUE']>=mymax].index)
+        zone_names = list(gdf_merge.names[gdf_merge.index.isin(myindices)])
+        #print(gdf_merge.names)
         # subset line gdf, if desired, to get rid of lines without flows
+        #["AECIZ", "LA-GULF", "MEC", "SIPC", "IL-C", "MISO-MS"]
+        print(zone_names)
         if subset_lines:
             fromindices = list(
                 line_gdf.index[
                     line_gdf.from_name.isin(
-                        ["AECIZ", "LA-GULF", "MEC", "SIPC", "IL-C", "MISO-MS"]
+                    zone_names
                     )
                 ]
             )
             toindices = list(
                 line_gdf.index[
                     line_gdf.to_name.isin(
-                        ["AECIZ", "LA-GULF", "MEC", "SIPC", "IL-C", "MISO-MS"]
+                        zone_names
                     )
                 ]
             )
@@ -909,8 +923,8 @@ class plotter(object):
             [str(int(cap_1)) + " MW", str(int(cap_2)) + " MW", str(int(cap_3)) + " MW"],
             loc="lower left",
             title="Line Capacity",
-            fontsize="large",
-            title_fontsize="large",
+            fontsize="medium",
+            title_fontsize="medium",
             frameon=False,
             ncol=2,
         )
