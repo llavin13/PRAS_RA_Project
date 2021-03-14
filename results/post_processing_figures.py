@@ -26,7 +26,7 @@ from geovoronoi.plotting import (
 )
 from geovoronoi import voronoi_regions_from_coords, points_to_coords
 
-folder = "test11.16"
+folder = "PRAS3.12.21"
 data = join(os.environ["HOMEPATH"], "Desktop", folder)
 sys.path.insert(0, data)
 from MISO_data_utility_functions import LoadMISOData, NRELEFSprofiles
@@ -34,8 +34,8 @@ from MISO_data_utility_functions import LoadMISOData, NRELEFSprofiles
 NREL = False
 NREL_year, NREL_profile = 2012, ""
 
-casename = "VRE0.4_wind_2012base100%_8760_25%tx_18%IRM_0GWstorage_addgulfsolar_"
-
+casename = "VRE0.4_wind_2012base100%_8760_100%tx_18%IRM_0GWstorage_addgulfsolar_"
+#VRE0.4_wind_2012base100%_8760_100%tx_18%IRM_0GWstorage_addgulfsolar
 miso_datapath = join(os.environ["HOMEPATH"], "Desktop", folder, "VREData")
 hifld_datapath = join(os.environ["HOMEPATH"], "Desktop", folder, "HIFLD_shapefiles")
 shp_path = os.environ["CONDA_PREFIX"] + r"\Library\share\gdal"
@@ -2056,6 +2056,8 @@ balancedVREplot30GW.add_storage_line_to_existing_plot(
 # storageELCC_VRE0.2_wind_2012base100%_8760_0%tx_18%IRM_nostorage_addgulfsolar
 
 test = plotter(data, join(results, "metricresults"), casename, miso_data)
+
+#here we need to do a few things to make modifications
 
 if NREL:
     nreltester = NRELEFSprofiles(data, NREL_profile)

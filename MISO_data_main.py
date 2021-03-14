@@ -40,15 +40,15 @@ re_penetration = "0.4"
 profile_year = 2012
 NREL = False
 NREL_year, NREL_profile = 2040, "EFSLoadProfile_Reference_Moderate"
-pras_filename = "VRE0.4_wind_2012base100%_8760_10%tx_18%IRM_12GWstorage_addgulfsolar"
+pras_filename = "VRE0.4_wind_2012base100%_8760_25%tx_18%IRM_0GWstorage_addgulfsolar"
 load_scalar = 1  # how much to scale resulting load profile by... 1 should be default
 target_IRM = 0.18  # as a fraction
 use_target_IRM = True  #
-storage_capacity = 12100  # total storage capacity, in MW
-scale_transmission_capacity = 0.1  # rescales transmission capacities between zones
+storage_capacity = 0  # total storage capacity, in MW
+scale_transmission_capacity = .25  # rescales transmission capacities between zones
 # fliename convention is VREscenario_REscenario_year_hoursused_txmodifier_RMmodifier_storage
 
-folder = "test11.16"  # whatever you name your folder when pulled from Github
+folder = "PRAS3.12.21"  # whatever you name your folder when pulled from Github
 
 if slice_in_index + row_len > 8760:
     raise ValueError("cannot index beyond 8760")
@@ -79,11 +79,11 @@ SEAMS_LRZ_map["ATC"] = ["LRZ 2"]
 SEAMS_LRZ_map["UPPC"] = ["LRZ 2"]
 SEAMS_LRZ_map["MEC"] = ["LRZ 3"]
 SEAMS_LRZ_map["IA-E"] = ["LRZ 3"]
-SEAMS_LRZ_map["CBPC-NIPCO"] = ["LRZ 3"]
+#SEAMS_LRZ_map["CBPC-NIPCO"] = ["LRZ 3"]
 SEAMS_LRZ_map["IL-C"] = ["LRZ 4"]
 SEAMS_LRZ_map["SIPC"] = ["LRZ 4"]
 SEAMS_LRZ_map["MISO-MO"] = ["LRZ 5"]
-SEAMS_LRZ_map["AECIZ"] = ["LRZ 5"]
+#SEAMS_LRZ_map["AECIZ"] = ["LRZ 5"]
 SEAMS_LRZ_map["IN-S"] = ["LRZ 6"]
 SEAMS_LRZ_map["IN-C"] = ["LRZ 6"]
 SEAMS_LRZ_map["NIPS"] = ["LRZ 6"]
@@ -117,6 +117,9 @@ start_time = time.time()
 
 # load bus-level wind and solar locs, match to MISO zones
 miso_data = LoadMISOData(folder_datapath, miso_datapath, hifld_datapath, shp_path)
+#new code 3.12.21 removes unwanted zones
+#miso_data.remove_zone('AECIZ')
+#
 miso_data.convert_CRS()
 miso_data.utility_territory_mapping()
 miso_data.initialize_SEAMS_match()
@@ -124,9 +127,14 @@ miso_data.match_unmatched_buses()
 miso_data.handle_multimatch_buses()
 miso_data.plot_points(showplot=False)
 final_miso_data = miso_data.returndata()
-
+#print(final_miso_data)
+#print(final_miso_data.FINAL_SEAMS_ZONE.unique())
 # assign capacity scenario to buses
 vre_scenarios = LoadVREScenarios(folder_datapath, RE_sheet)
+#new code 3.12.21 removes unwanted zones
+vre_scenarios.remove_zones('AECIZ')
+vre_scenarios.remove_zones('CBPC-NIPCO')
+#
 vre_capacity_scenarios = vre_scenarios.create_seams_df(SEAMS_LRZ_map)
 
 # assign or modify load data?
@@ -141,6 +149,13 @@ HDF5_data = CreateHDF5(
     final_miso_data,
     vre_capacity_scenarios,
 )
+
+#HDF
+HDF5_data.remove_zones('AECIZ')
+#vre_scenarios.remove_zones('AECIZ')
+HDF5_data.remove_zones('CBPC-NIPCO')
+
+
 HDF5_data.create_gens_np()
 HDF5_data.create_zone_np(tx_scalar=scale_transmission_capacity)
 HDF5_data.create_tx_np()
@@ -158,12 +173,12 @@ if NREL:
 
 # add selected sceanario VRE capacity
 HDF5_data.add_all_re_profs(
-    re_penetration, profile_year, choice="max", N=15, hybridize=False
+    re_penetration, profile_year, choice="max", N=100, hybridize=False
 )
 
 # add a generic sized storage resource at all buses, if desired
 HDF5_data.add_all_storage_resource(
-    storage_capacity, 6, alloc_method="equal", fname=pras_filename
+    storage_capacity, 6, alloc_method="prorataVRE", fname=pras_filename
 )  # now is total capacity and duration
 
 
@@ -178,7 +193,7 @@ prof_id = np.random.choice(
     final_miso_data[final_miso_data.FINAL_SEAMS_ZONE == "LA-GULF"].Name.unique()
 )
 HDF5_data.add_re_generator(
-    "Utility Solar", "LA-GULF", prof_id, "0.4", 2012, 15, overwrite_MW=0.1
+    "Utility Solar", "LA-GULF", prof_id, "0.4", 2012, 100, overwrite_MW=0.1
 )
 
 # finally, export PRAS case

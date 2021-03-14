@@ -91,6 +91,13 @@ class LoadMISOData(object):
         )
         print("...data loaded")
 
+    def remove_zone(self,zone):
+        #print(self.miso_gdf)
+        #print(self.miso_gdf.columns)
+        #print(self.miso_map)
+        #print(zone)
+        return None
+
     def reverse_gdf_coordinates(self):
         miso_gdf = gpd.GeoDataFrame(
             self.miso_map,
@@ -120,7 +127,7 @@ class LoadMISOData(object):
                 & (self.utilities_map["NAME"].str.contains("COOP"))
             ]["NAME"]
         )
-        map_dict["AECIZ"] = [mo_coops, "olive"]
+        #map_dict["AECIZ"] = [mo_coops, "olive"]
         map_dict["ATC"] = [
             [
                 "WISCONSIN ELECTRIC POWER CO",
@@ -129,26 +136,26 @@ class LoadMISOData(object):
             ],
             "pink",
         ]
-        map_dict["CBPC-NIPCO"] = [
-            [
-                "MIDLAND POWER COOP",
-                "IOWA LAKES ELECTRIC COOP",
-                "BUTLER COUNTY RURAL ELEC COOP - (IA)",
-                "BOONE VALLEY ELECTRIC COOP",
-                "FRANKLIN RURAL ELECTRIC COOP - (IA)",
-                "RACCOON VALLEY ELECTRIC COOPERATIVE",
-                "PRAIRIE ENERGY COOP",
-                "CALHOUN COUNTY ELEC COOP ASSN",
-                "GRUNDY COUNTY RURAL ELEC COOP",
-                "NORTH WEST RURAL ELECTRIC COOP",
-                "WOODBURY COUNTY RURAL E C A",
-                "WESTERN IOWA POWER COOP",
-                "HARRISON COUNTY RRL ELEC COOP",
-                "NISHNABOTNA VALLEY R E C",
-                "HEARTLAND POWER COOP",
-            ],
-            "darkseagreen",
-        ]
+        #map_dict["CBPC-NIPCO"] = [
+        #    [
+        #        "MIDLAND POWER COOP",
+        #        "IOWA LAKES ELECTRIC COOP",
+        #        "BUTLER COUNTY RURAL ELEC COOP - (IA)",
+        #        "BOONE VALLEY ELECTRIC COOP",
+        #        "FRANKLIN RURAL ELECTRIC COOP - (IA)",
+        #        "RACCOON VALLEY ELECTRIC COOPERATIVE",
+        #        "PRAIRIE ENERGY COOP",
+        #        "CALHOUN COUNTY ELEC COOP ASSN",
+        #        "GRUNDY COUNTY RURAL ELEC COOP",
+        #        "NORTH WEST RURAL ELECTRIC COOP",
+        #        "WOODBURY COUNTY RURAL E C A",
+        #        "WESTERN IOWA POWER COOP",
+        #        "HARRISON COUNTY RRL ELEC COOP",
+        #        "NISHNABOTNA VALLEY R E C",
+        #        "HEARTLAND POWER COOP",
+        #   ],
+        #    "darkseagreen",
+        #]
         map_dict["CONS"] = [["CONSUMERS ENERGY CO"], "orange"]
         map_dict["DECO"] = [["DTE ELECTRIC COMPANY"], "g"]
         map_dict["EES-ARK"] = [["ENTERGY ARKANSAS INC"], "r"]
@@ -493,6 +500,12 @@ class LoadVREScenarios(object):
             sheet_name="Load",
         )
 
+    def remove_zones(self,zone):
+        #print(self.seams_load.columns)
+        del self.seams_load[zone]
+        #print(self.seams_load.columns)
+        return None
+
     def subset_VRE_df(self, df, VRE_type):
         colnames = df.iloc[0, 1:]
         if "Wind" in VRE_type:
@@ -630,7 +643,26 @@ class CreateHDF5(object):
             )
         ].reset_index()
 
+    def remove_zones(self,zone):
+        idx = self.seams_mapping_df[self.seams_mapping_df['CEP Bus Name']==zone].index[0]
+        #print(idx)
+        busID = self.seams_mapping_df.at[idx,'CEP Bus ID']#grab the zone bus ID
+        #print(busID)
+        del self.seams_load_df[zone]
+        self.seams_generation_df.drop(self.seams_generation_df[self.seams_generation_df['Bubble']==busID].index,inplace=True)
+        self.seams_mapping_df.drop(idx,inplace=True)
+        self.seams_transmission_df.drop(self.seams_transmission_df[self.seams_transmission_df['From']==float(busID)].index,inplace=True)
+        self.seams_transmission_df.drop(self.seams_transmission_df[self.seams_transmission_df['To']==float(busID)].index,inplace=True)
+        self.cleaned_seams_transmission_df.drop(self.cleaned_seams_transmission_df[self.cleaned_seams_transmission_df['From']==float(busID)].index,inplace=True)
+        self.cleaned_seams_transmission_df.drop(self.cleaned_seams_transmission_df[self.cleaned_seams_transmission_df['To']==float(busID)].index,inplace=True)
+        
+        #print(self.seams_load.columns)
+        return None
+
     def create_gens_np(self):
+        #print(self.seams_generation_df.index)
+        #print(self.seams_mapping_df)
+        #print(self.miso_geography_df)
         ### GENERATORS ###
         self.generators_dtype = np.dtype(
             [
@@ -1218,7 +1250,13 @@ class CreateHDF5(object):
 
     def calc_IRM(self, target_IRM, storage_capacity):
         peakload = self.seams_load_df.iloc[:, 1:].sum(axis=1).max()
-        ICAP = self.capacity_np.mean(axis=0).sum()  # renewables are deflated by CF
+        #filter capacity_np to top XX load hours
+        topNdates = self.topNloads.Date.values
+        #df[df['A'].isin([3, 6])]
+        topNidx = list(self.seams_load_df[self.seams_load_df.Date.isin(topNdates)].index)
+        #np.array([11,13,155,22,0xff,32,56,88])[filter_indices] 
+        print(self.capacity_np[topNidx,:].shape)
+        ICAP = self.capacity_np[topNidx,:].mean(axis=0).sum()  # renewables are deflated by CF in top X
         ICAP += storage_capacity  # add the storage GW
         IRM = str(round((100.0 * ((ICAP / peakload) - 1.0)), 2))
         print("native IRM is " + IRM + "%")

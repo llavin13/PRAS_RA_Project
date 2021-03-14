@@ -1,10 +1,10 @@
 using PRAS, FileIO, JLD, DelimitedFiles, DataFrames, CSV, XLSX, TickTock
-foldername = "test11.16" # whatever you named the folde
-casename = "VRE0.4_wind_2012base100%_8760_25%tx_18%IRM_12GWstorage_addgulfsolar.pras"
-casename2 = "VRE0.4_wind_2012base100%_8760_25%tx_18%IRM_12GWstorage_addgulfsolar.pras"
+foldername = "PRAS3.12.21" # whatever you named the folde
+casename = "VRE0.4_wind_2012base100%_8760_100%tx_18%IRM_0GWstorage_addgulfsolar.pras"
+casename2 = "VRE0.4_wind_2012base100%_8760_100%tx_18%IRM_0GWstorage_addgulfsolar.pras"
 
-casename3 = "VRE0.4_wind_2012base100%_8760_25%tx_18%IRM_30GWstorage_addgulfsolar.pras"
-casename4 = "VRE0.4_wind_2012base100%_8760_25%tx_18%IRM_30GWstorage_addgulfsolar.pras"
+# casename3 = "VRE0.4_wind_2012base100%_8760_25%tx_18%IRM_30GWstorage_addgulfsolar.pras"
+# casename4 = "VRE0.4_wind_2012base100%_8760_25%tx_18%IRM_30GWstorage_addgulfsolar.pras"
 
 path = joinpath(homedir(), "Desktop", foldername, "PRAS_files", casename)
 path2 = joinpath(homedir(), "Desktop", foldername, "PRAS_files", casename2)
@@ -155,7 +155,9 @@ function ELCC_wrapper_storage(casename, sys_path, aug_path, samples, pval, capac
     CSV.write(case_tmp_str, df) # writes a temporary dataframe
     miso_array = XLSX.readdata(joinpath(homedir(), "Desktop", foldername, "NREL-Seams Model (MISO).xlsx"), "Mapping", "A2:C23")
     zones = string.(miso_array[:,3]) 
+    filter!(e -> e ∉ ["AECIZ","CBPC-NIPCO"], zones)
     zone_nums = string.(miso_array[:,1])
+    println(zone_nums)
     tick()
     for (i, zone) in enumerate(zones)
         println(zone, " ", zone_nums[i])
@@ -174,7 +176,8 @@ function ELCC_wrapper_storage(casename, sys_path, aug_path, samples, pval, capac
         laptimer()
     end
     # write df to csv
-    case_str = string("storageELCC_", casename[1:findlast(isequal('.'), casename) - 1], ".csv") # naming convention for storing data
+    case_str = string("storageELCC_", duration, "hour_", casename[1:findlast(isequal('.'), casename) - 1], ".csv") # naming convention for storing data
+    # case_str = string("storageELCC_", casename[1:findlast(isequal('.'), casename) - 1], ".csv") # naming convention for storing data
     cd(joinpath(homedir(), "Desktop", foldername, "results"))
     CSV.write(case_str, df)
     tock()
@@ -192,7 +195,10 @@ function ELCC_wrapper_solar(casename, sys_path, aug_path, samples, pval, capacit
     techs = ["UtilitySolar"] # "UtilityWind","DistributedSolar"s
     miso_array = XLSX.readdata(joinpath(homedir(), "Desktop", foldername, "NREL-Seams Model (MISO).xlsx"), "Mapping", "A2:C23")
     zones = string.(miso_array[:,3]) 
+    filter!(e -> e ∉ ["AECIZ","CBPC-NIPCO"], zones)
     zone_nums = string.(miso_array[:,1])
+    println(zone_nums)
+    filter!(e -> e ∉ ["2","7"], zone_nums)
     tick()
     for resource in techs
         for (i, zone) in enumerate(zones)
@@ -228,7 +234,9 @@ function ELCC_wrapper_wind(casename, sys_path, aug_path, samples, pval, capacity
     techs = ["UtilityWind"] # "UtilityWind","DistributedSolar"s
     miso_array = XLSX.readdata(joinpath(homedir(), "Desktop", foldername, "NREL-Seams Model (MISO).xlsx"), "Mapping", "A2:C23")
     zones = string.(miso_array[:,3]) 
+    filter!(e -> e ∉ ["AECIZ","CBPC-NIPCO"], zones)
     zone_nums = string.(miso_array[:,1])
+    println(zone_nums)
     tick()
     for resource in techs
         for (i, zone) in enumerate(zones)
@@ -255,10 +263,10 @@ end
 
 # wrapped ELCC runs
 # these take a very long time if you're not careful
-ELCC_wrapper_storage(casename,path,path2,250,.2,500,6)
+ELCC_wrapper_storage(casename,path,path2,2500,.05,500,6)
 ELCC_wrapper_storage(casename3,path3,path4,2500,.2,500,6)
 
-ELCC_wrapper_solar(casename,path,path2,2500,.2,500)
+ELCC_wrapper_solar(casename,path,path2,2500,.05,500)
 ELCC_wrapper_solar(casename3,path3,path4,2500,.2,500)
 
 ELCC_wrapper_wind(casename,path,path2,2500,.2,500)
@@ -266,16 +274,21 @@ ELCC_wrapper_wind(casename3,path3,path4,2500,.2,500)
 
 # run and create results (EUE, LOLE, etc.) for a single case
 run_path_model(path4,casename4,foldername, 1000)
-run_path_model(path2,casename2,foldername, 1000)
+run_path_model(path2,casename2,foldername, 10000)
 
 # loop some runs to speed things up
 # ,"12GW","30GW","100GW"
 for n in ["25%tx","50%tx","100%tx"]
-    for y in ["60GW"]
+    for y in ["0GW"]
         mycase = string("VRE0.4_wind_2012base100%_8760_", n, "_18%IRM_", y, "storage_addgulfsolar.pras")
         println(mycase)
         mypath = joinpath(homedir(), "Desktop", foldername, "PRAS_files", mycase)
-        run_path_model(mypath, mycase, foldername, 2500)
+        run_path_model(mypath, mycase, foldername, 10000)
+        ELCC_wrapper_solar(mycase, mypath, mypath, 2500, .05, 500)
+        ELCC_wrapper_storage(mycase, mypath, mypath, 2500, .05, 500, 1)
+        ELCC_wrapper_storage(mycase, mypath, mypath, 2500, .05, 500, 4)
+        ELCC_wrapper_storage(mycase, mypath, mypath, 2500, .05, 500, 6)
+        # run_path_model(mypath, mycase, foldername, 2500)
     end
 end
 ## RUN FUNCTIONS ONCE YOU HAVE LOADED THEM
