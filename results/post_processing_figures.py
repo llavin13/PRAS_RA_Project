@@ -59,27 +59,54 @@ class plotter(object):
         assert (type(casename)) == str
         # loads data, mostly
         # data loads
-        miso_map = pd.read_excel(
+        self.miso_map = pd.read_excel(
             join(data_folder, "NREL-Seams Model (MISO).xlsx"), sheet_name="Mapping"
         )
-        miso_loads = pd.read_excel(
+        self.miso_loads = pd.read_excel(
             join(data_folder, "NREL-Seams Model (MISO).xlsx"), sheet_name="Load"
         )
-        miso_tx = pd.read_excel(
+        self.miso_tx = pd.read_excel(
             join(data_folder, "NREL-Seams Model (MISO).xlsx"),
             sheet_name="Transmission",
         )
 
         # new loads
-        miso_busmap = pd.read_csv(
+        self.miso_busmap = pd.read_csv(
             os.path.join(data_folder, "MISO_data", "Bus Mapping Extra Data.csv")
         )
-        miso_bus_zone = pd.read_excel(
+        self.miso_bus_zone = pd.read_excel(
             join(data_folder, "MISO_data", "Bus_to_SeamsRegion.xlsx")
         )
-        miso_busmap = miso_busmap.merge(miso_bus_zone, left_on="Name", right_on="Bus")
+
+        # create attributes of stuff we want later
+        self.results_folder = results_folder
+        #self.miso_map = miso_map
+        #self.miso_loads = miso_loads
+        #self.miso_tx = miso_tx
+
+        print("...plotting data loaded")
+
+    def remove_zones(self,zone):
+        #print(self.miso_busmap)
+        #print(self.miso_busmap.columns)
+        #print(self.miso_bus_zone)
+        idx = self.miso_map[self.miso_map['CEP Bus Name']==zone].index[0]
+        #print(idx)
+        #print(zone)
+        busID = self.miso_map.at[idx,'CEP Bus ID']#grab the zone bus ID
+        #print(busID)
+        del self.miso_loads[zone]
+        self.miso_map.drop(idx,inplace=True)
+        self.miso_tx.drop(self.miso_tx[self.miso_tx['From']==float(busID)].index,inplace=True)
+        self.miso_tx.drop(self.miso_tx[self.miso_tx['To']==float(busID)].index,inplace=True)
+        self.miso_tx.reset_index(inplace=True)
+        self.miso_bus_zone.drop(self.miso_bus_zone[self.miso_bus_zone['Seams Region']==zone].index,inplace=True)
+        return None
+
+    def format_data(self):
+        miso_busmap = self.miso_busmap.merge(self.miso_bus_zone, left_on="Name", right_on="Bus")
         miso_busmap = miso_busmap[
-            ~miso_busmap["Seams Region"].isin(["PJM-C", "CSWS+", "MDU", "MN-NW"])
+            ~miso_busmap["Seams Region"].isin(["PJM-C", "CSWS+", "MDU", "MN-NW","WAPA_DK","BREC","AECIZ","CBPC-NIPCO"])
         ]
         miso_busmap = miso_busmap.rename(columns={"Seams Region": "Seams_Region"})
         miso_seam_zone = pd.DataFrame(columns=["Seams_Region", "geometry"])
@@ -99,44 +126,40 @@ class plotter(object):
 
         # results loads
         region_lole = pd.read_csv(
-            join(results_folder, casename + "regionlole.csv"), header=None
+            join(self.results_folder, self.casename + "regionlole.csv"), header=None
         )
         region_eue = pd.read_csv(
-            join(results_folder, casename + "regioneue.csv"), header=None
+            join(self.results_folder, self.casename + "regioneue.csv"), header=None
         )
         region_period_eue = pd.read_csv(
-            join(results_folder, casename + "regionperiodeue.csv"), header=None
+            join(self.results_folder, self.casename + "regionperiodeue.csv"), header=None
         )
         period_eue = pd.read_csv(
-            join(results_folder, casename + "periodeue.csv"), header=None
+            join(self.results_folder, self.casename + "periodeue.csv"), header=None
         )
         period_lolp = pd.read_csv(
-            join(results_folder, casename + "periodlolp.csv"), header=None
+            join(self.results_folder, self.casename + "periodlolp.csv"), header=None
         )
 
         utilization = pd.read_csv(
-            join(results_folder, casename + "utilizations.csv"), header=None
+            join(self.results_folder, self.casename + "utilizations.csv"), header=None
         )
 
-        flow = pd.read_csv(join(results_folder, casename + "flows.csv"), header=None)
+        flow = pd.read_csv(join(self.results_folder, self.casename + "flows.csv"), header=None)
 
         # clean and reformat some of the loaded info
         region_lole.index, region_eue.index = (
-            list(miso_map["CEP Bus ID"]),
-            list(miso_map["CEP Bus ID"]),
+            list(self.miso_map["CEP Bus ID"]),
+            list(self.miso_map["CEP Bus ID"]),
         )
         region_lole.columns, region_eue.columns = ["LOLE"], ["EUE"]
         region_df = pd.concat([region_lole, region_eue], axis=1)
         tmps = len(region_period_eue.columns)
-        region_df["load"] = list(miso_loads.iloc[:tmps, 1:].sum(axis=0))
-        region_df["names"] = miso_map["CEP Bus Name"].values
+        region_df["load"] = list(self.miso_loads.iloc[:tmps, 1:].sum(axis=0))
+        region_df["names"] = self.miso_map["CEP Bus Name"].values
         # clean and reformat transmission info
 
-        # create attributes of stuff we want later
-        self.results_folder = results_folder
-        self.miso_map = miso_map
-        self.miso_loads = miso_loads
-        self.miso_tx = miso_tx
+        #convert to objs
         self.region_df = region_df
         self.region_lole = region_lole
         self.region_eue = region_eue
@@ -145,7 +168,6 @@ class plotter(object):
         self.period_lolp = period_lolp
         self.utilization = utilization
         self.flow = flow
-        print("...plotting data loaded")
 
     def data_check(self):
         # runs some checks on data formatting from uploads
@@ -196,8 +218,8 @@ class plotter(object):
             self.format12x24(attribute, mean=mean), linewidth=0.5, cmap="Reds"
         )
         ax.set_ylim(1, 13)
-        ax.set_ylabel("Month")
-        ax.set_xlabel("Hour Beginning")
+        ax.set_ylabel("Month", fontsize=20)
+        ax.set_xlabel("Hour Beginning", fontsize=20)
         ax.set_title(attribute_string)
         plt.savefig(
             join(self.results_folder, attribute_string + self.casename + "heatmap.jpg"),
@@ -318,20 +340,28 @@ class plotter(object):
         return None
 
     def updated_geography_plot(
-        self, CRS=4326, attribute="EUE", line_attribute="utilization", plot_type="fills"
+        self,
+        CRS=4326,
+        attribute="EUE",
+        line_attribute="utilization",
+        plot_type="fills",
+        hours="ALL",
+        months="ALL",
+        subset_lines=True,
     ):
+        plotTitle = "MISO Base Case \n Regional Resource Adequacy"
         if attribute != "LOLE" and attribute != "EUE":
             raise ValueError("can only plot LOLE or EUE")
         boundary = self.iso_map[self.iso_map["NAME"] == self.iso_map.at[0, "NAME"]]
         boundary = boundary.to_crs(epsg=CRS)
         gdf_proj = self.miso_seam_zone_gdf.to_crs(boundary.crs)
         # re-assignment due to different zone naming conventions
-        gdf_proj.at[
-            gdf_proj[gdf_proj.Seams_Region == "WAPA_DK"].index.values[0], "Seams_Region"
-        ] = "CBPC-NIPCO"  # [0] = "CBPC-NIPCO"
-        gdf_proj.at[
-            gdf_proj[gdf_proj.Seams_Region == "BREC"].index.values[0], "Seams_Region"
-        ] = "AECIZ"
+        #gdf_proj.at[
+        #    gdf_proj[gdf_proj.Seams_Region == "WAPA_DK"].index.values[0], "Seams_Region"
+        #] = "CBPC-NIPCO"  # [0] = "CBPC-NIPCO"
+        #gdf_proj.at[
+        #    gdf_proj[gdf_proj.Seams_Region == "BREC"].index.values[0], "Seams_Region"
+        #] = "AECIZ"
         gdf_proj.at[
             gdf_proj[gdf_proj.Seams_Region == "LA-Gulf"].index.values[0], "Seams_Region"
         ] = "LA-GULF"
@@ -344,20 +374,25 @@ class plotter(object):
             right_on="names",
         )
         self.gdf_merge = gdf_merge
-        line_gdf = self.create_lines(line_attribute)
+        line_gdf = self.create_lines(line_attribute, month=months, hour=hours)
         labs = list(gdf_merge["Seams_Region"])
         attribute_max = gdf_merge[attribute].max()
         boundary.geometry = boundary.geometry.buffer(0)
         boundary_shape = cascaded_union(boundary.geometry)
         coords = points_to_coords(gdf_proj.geometry)
-        poly_shapes, pts, poly_to_pt_assignments = voronoi_regions_from_coords(
+        poly_shapes, pts,poly_to_pt_assignments = voronoi_regions_from_coords(
             coords, boundary_shape
         )
+        #print(poly_shapes)
+        #print(type(poly_shapes))
+
         # run plotting
         fig, ax = subplot_for_map()
         myaxes = plt.axes()
         myaxes.set_ylim([20, 50])
-        myaxes.set_xlim([-104, -82])
+        myaxes.set_xlim([-100, -82])
+        myaxes.set_yticklabels((" "))
+        myaxes.set_xticklabels((" "))
         # for i,s in enumerate(poly_shapes):
         #    gdf_merge.at[i,'geometry'] = s
         divider = make_axes_locatable(myaxes)
@@ -372,15 +407,17 @@ class plotter(object):
                 alpha=1.0,
                 markersize=100,
                 legend_kwds={
-                    "label": attribute + " (MWh (EUE) or Hours (LOLE) /y)",
+                    "label": attribute + " (MWh)",
                     "orientation": "horizontal",
                 },
             )
+            # (MWh (EUE) or Hours (LOLE) /y)
             plot_points(
-                myaxes, pts, 2, labels=labs, alpha=0.0
+                myaxes, pts, 2, labels=labs, alpha=0.0, label_fontsize=16
             )  # mostly just adds the zonal labels
         elif plot_type == "fills":
             for i, s in enumerate(poly_shapes):
+                #print(i,s)
                 plot_voronoi_polys(
                     myaxes,
                     s,
@@ -395,15 +432,36 @@ class plotter(object):
                 cax=cax,
                 alpha=0.0,
                 legend_kwds={
-                    "label": attribute + " (MWh (EUE) or Hours (LOLE) /y)",
+                    "label": attribute + " (MWh)",
                     "orientation": "horizontal",
                 },
             )
+            # (MWh (EUE) or Hours (LOLE) /y)
             plot_points(
                 myaxes, pts, 2, labels=labs
             )  # mostly just adds the zonal labels
         else:
             raise ValueError("plot_type must be either fills or bubbles")
+
+        # subset line gdf, if desired, to get rid of lines without flows
+        if subset_lines:
+            fromindices = list(
+                line_gdf.index[
+                    line_gdf.from_name.isin(
+                        ["AECIZ", "LA-GULF", "MEC", "SIPC", "IL-C", "MISO-MS"]
+                    )
+                ]
+            )
+            toindices = list(
+                line_gdf.index[
+                    line_gdf.to_name.isin(
+                        ["AECIZ", "LA-GULF", "MEC", "SIPC", "IL-C", "MISO-MS"]
+                    )
+                ]
+            )
+            retained = list(set(fromindices + toindices))
+            line_gdf = line_gdf[line_gdf.index.isin(retained)]
+            plotTitle = "Retained Lines in " + plotTitle
 
         linewidths = list(line_gdf.MW)
         linewidths_2 = list(line_gdf.capacity)
@@ -427,9 +485,9 @@ class plotter(object):
         # plt.suptitle("MISO Regional Resource Adequacy", fontsize=16, y=1)
         # plt.title("100% Tx Capacity, 0 GW Storage ICAP", fontsize=12, y=0.95)
         myaxes.set_title(
-            "MISO Regional Resource Adequacy \n 25% Tx Capacity, 0 GW Storage ICAP",
-            fontsize=12,
+            plotTitle, fontsize=12,
         )
+        # \n 25% Tx Capacity, 0 GW Storage ICAP
         # add manual legends to help interpret plot
         cap_1 = round(max(linewidths_2), -3)
         cap_2 = round(max(linewidths_2), -3) * 2.0 / 3.0
@@ -458,23 +516,36 @@ class plotter(object):
                 str(int(utilization_3)) + " MW",
             ],
             loc="lower left",
-            title="Line Capacity   Line " + line_attribute.capitalize(),
+            title="Line Capacity   Average Flow",
             fontsize="x-small",
             title_fontsize="small",
             frameon=False,
             ncol=2,
         )
+        # title="Line Capacity   Line " + line_attribute.capitalize()
 
         # custom_utilization_lines = []
         # myaxes.legend(custom_utilization_lines, [],
         # loc="lower right",title="Line "+line_attribute, fontsize="x-small",title_fontsize="small",frameon=False)
-
+        if subset_lines:
+            r = "RETAINED_"
+        else:
+            r = ""
         print("plotted")
         plt.savefig(
             os.path.join(
-                self.results_folder, "voronoi" + plot_type + self.casename + ".jpg"
+                self.results_folder,
+                r
+                + "voronoi"
+                + plot_type
+                + self.casename
+                + "_h="
+                + str(hours)
+                + "_m="
+                + str(months)
+                + ".jpg",
             ),
-            dpi=300,
+            dpi=500,
         )
         # eventually create values for loading EUE, lole, etc
         return None
@@ -721,7 +792,7 @@ class plotter(object):
         # plots onto map of MISO
         fig, ax = plt.subplots(1, figsize=(8, 8))
         myaxes = plt.axes()
-        myaxes.set_ylim([23, 50])
+        myaxes.set_ylim([18, 50])
         myaxes.set_xlim([-108, -82])
         self.iso_map[self.iso_map["NAME"] == self.iso_map.at[0, "NAME"]].plot(
             ax=myaxes, facecolor="b", edgecolor="r", alpha=0.1, linewidth=2
@@ -744,6 +815,109 @@ class plotter(object):
             },
         )
         plt.savefig(join(self.results_folder, self.casename + label + ".jpg"), dpi=300)
+        return None
+
+    def plot_polygons(
+        self,
+        CRS=4326,
+        attribute="EUE",
+        line_attribute="utilization",
+        plot_type="fills",
+        hours="ALL",
+        months="ALL",
+        label="polygons",
+    ):
+        boundary = self.iso_map[self.iso_map["NAME"] == self.iso_map.at[0, "NAME"]]
+        boundary = boundary.to_crs(epsg=CRS)
+        gdf_proj = self.miso_seam_zone_gdf.to_crs(boundary.crs)
+        # re-assignment due to different zone naming conventions
+        #gdf_proj.at[
+        #    gdf_proj[gdf_proj.Seams_Region == "WAPA_DK"].index.values[0], "Seams_Region"
+        #] = "CBPC-NIPCO"  # [0] = "CBPC-NIPCO"
+        #gdf_proj.at[
+        #    gdf_proj[gdf_proj.Seams_Region == "BREC"].index.values[0], "Seams_Region"
+        #] = "AECIZ"
+        gdf_proj.at[
+            gdf_proj[gdf_proj.Seams_Region == "LA-Gulf"].index.values[0], "Seams_Region"
+        ] = "LA-GULF"
+        # end re-assignment
+        gdf_merge = pd.merge(
+            gdf_proj,
+            self.region_df,
+            how="left",
+            left_on="Seams_Region",
+            right_on="names",
+        )
+        self.gdf_merge = gdf_merge
+        line_gdf = self.create_lines(line_attribute, month=months, hour=hours)
+        labs = list(gdf_merge["Seams_Region"])
+        # attribute_max = gdf_merge[attribute].max()
+        boundary.geometry = boundary.geometry.buffer(0)
+        boundary_shape = cascaded_union(boundary.geometry)
+        coords = points_to_coords(gdf_proj.geometry)
+        poly_shapes, pts, poly_to_pt_assignments = voronoi_regions_from_coords(
+            coords, boundary_shape
+        )
+
+        fig, ax = plt.subplots(1, figsize=(8, 8))
+        myaxes = plt.axes()
+        myaxes.set_xlabel("Longitude", fontsize=20)
+        myaxes.set_ylabel("Latitude", fontsize=20)
+        myaxes.tick_params(axis="both", which="major", labelsize=14)
+        # myaxes.set_xticklabels(fontsize=14)
+        # myaxes.set_yticklabels(fontsize=14)
+        # myaxes.set_ylim([18, 50])
+        # myaxes.set_xlim([-108, -82])
+        plot_voronoi_polys_with_points_in_area(
+            myaxes,
+            boundary_shape,
+            poly_shapes,
+            pts,
+            poly_to_pt_assignments,
+            points_color="blue",
+            points_markersize=12,
+            point_labels=labs,
+            point_label_fontsize=12,
+            point_label_color="k",
+        )
+        # self.iso_map[self.iso_map["NAME"] == self.iso_map.at[0, "NAME"]].plot(
+        #    ax=myaxes, facecolor="b", edgecolor="r", alpha=0.1, linewidth=2
+        # )
+        # also add the linegdf
+
+        linewidths = list(line_gdf.MW)
+        linewidths_2 = list(line_gdf.capacity)
+        # finally, add the tx lines
+        for lw, lw2 in zip(linewidths, linewidths_2):
+            line_gdf[line_gdf.MW == lw].plot(
+                lw=lw2 * 0.001, ax=myaxes, color="k", zorder=2, alpha=0.3
+            )
+        # finally, add the tx lines
+        # and, do I need a line legend?
+
+        cap_1 = round(max(linewidths_2), -3)
+        cap_2 = round(max(linewidths_2), -3) * 2.0 / 3.0
+        cap_3 = round(max(linewidths_2), -3) * 1.0 / 3.0
+
+        custom_capacity_lines = [
+            Line2D([0], [0], color="k", lw=cap_1 * 0.001, alpha=0.4),
+            Line2D([0], [0], color="k", lw=cap_2 * 0.001, alpha=0.4),
+            Line2D([0], [0], color="k", lw=cap_3 * 0.001, alpha=0.4),
+        ]
+        myaxes.legend(
+            custom_capacity_lines,
+            [str(int(cap_1)) + " MW", str(int(cap_2)) + " MW", str(int(cap_3)) + " MW"],
+            loc="lower left",
+            title="Line Capacity",
+            fontsize="large",
+            title_fontsize="large",
+            frameon=False,
+            ncol=2,
+        )
+
+        plt.tight_layout()
+        # plt.show()
+        plt.savefig(join(self.results_folder, "polymap_" + label + ".png"), dpi=300)
         return None
 
     def aggregate_zones(self, df, tmps=24, monthly=False):
@@ -780,11 +954,11 @@ class plotter(object):
         fig, ax = plt.subplots(1, figsize=(10, 6))
         miso_loads_zones.plot.area(ax=ax, color=color_list)
 
-        ax.set_ylabel("MWh")
+        ax.set_ylabel("MWh", fontsize=24)
         if monthly:
-            ax.set_xlabel("(Month-Hour) Average")
+            ax.set_xlabel("(Month-Hour) Average", fontsize=16)
         else:
-            ax.set_xlabel("Hour Beginning")
+            ax.set_xlabel("Hour Beginning", fontsize=16)
         for index, label in enumerate(
             [
                 "Jan",
@@ -813,9 +987,9 @@ class plotter(object):
 
         lgd = plt.legend(bbox_to_anchor=(1.2, 1.01), loc="upper right")
         if NREL:
-            label = "NREL" + str(scenario_lab) + str(year_lab) + "load.jpg"
+            label = "NREL" + str(scenario_lab) + str(year_lab) + "load.png"
         else:
-            label = "MISOload.jpg"
+            label = "MISOload.png"
         plt.savefig(
             join(self.results_folder, label),
             bbox_extra_artists=(lgd,),
@@ -1558,6 +1732,43 @@ class casemetricplotter(object):
     def add_plot_line(self, *args):
         return None
 
+# storageELCC_VRE0.2_wind_2012base100%_8760_0%tx_18%IRM_nostorage_addgulfsolar
+
+test = plotter(data, join(results, "metricresults"), casename, miso_data)
+
+#here we need to do a few things to make modifications
+test.remove_zones("AECIZ")
+test.remove_zones("CBPC-NIPCO")
+test.format_data()
+
+
+if NREL:
+    nreltester = NRELEFSprofiles(data, NREL_profile)
+    load, normprofile = nreltester.run_all(NREL_year)
+    test.modify_load_year(NREL_year, load, normprofile)
+    l = [m for m in re.finditer("_", NREL_profile)]
+    scenario_label = (
+        NREL_profile[l[0].end() : l[1].start()] + NREL_profile[l[1].end() :]
+    )
+else:
+    scenario_label = ""
+
+test.updated_geography_plot()
+test.updated_geography_plot(subset_lines=False)
+test.plot_polygons()
+# test.geography_tx_plot("utilization", month=7, hour=16)
+# test.geography_plot("region_lole")
+# test.geography_plot("region_eue")
+#test.heatmap("period_eue")
+#test.heatmap("period_lolp")
+# test.panel_tx_heatmap("utilization")  # takes awhile
+# test.tx_heatmap("15", "utilization")
+# test.tx_heatmap("15", "flow")
+# test.heatmap("period_lolp", mean=True)
+
+test.plot_zonal_loads(NREL=NREL, year_lab=NREL_year, scenario_lab=scenario_label)
+
+"""
 
 case_obj = casemetricplotter(data)
 case_obj.plot_case(
@@ -2051,35 +2262,4 @@ balancedVREplot30GW.add_storage_line_to_existing_plot(
     case_label="solar25%tx",
     cname="solarELCC_",
 )
-
-
-# storageELCC_VRE0.2_wind_2012base100%_8760_0%tx_18%IRM_nostorage_addgulfsolar
-
-test = plotter(data, join(results, "metricresults"), casename, miso_data)
-
-#here we need to do a few things to make modifications
-
-if NREL:
-    nreltester = NRELEFSprofiles(data, NREL_profile)
-    load, normprofile = nreltester.run_all(NREL_year)
-    test.modify_load_year(NREL_year, load, normprofile)
-    l = [m for m in re.finditer("_", NREL_profile)]
-    scenario_label = (
-        NREL_profile[l[0].end() : l[1].start()] + NREL_profile[l[1].end() :]
-    )
-else:
-    scenario_label = ""
-
-test.updated_geography_plot()
-# test.geography_tx_plot("utilization", month=7, hour=16)
-# test.geography_plot("region_lole")
-# test.geography_plot("region_eue")
-test.heatmap("period_eue")
-test.heatmap("period_lolp")
-# test.panel_tx_heatmap("utilization")  # takes awhile
-# test.tx_heatmap("15", "utilization")
-# test.tx_heatmap("15", "flow")
-# test.heatmap("period_lolp", mean=True)
-
-test.plot_zonal_loads(NREL=NREL, year_lab=NREL_year, scenario_lab=scenario_label)
-
+"""
